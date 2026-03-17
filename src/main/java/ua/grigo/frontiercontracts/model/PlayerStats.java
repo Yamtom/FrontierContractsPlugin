@@ -7,12 +7,14 @@ public final class PlayerStats {
     private int reputation;
     private int completedContracts;
     private int failedContracts;
+    private int contractXp;
 
-    public PlayerStats(UUID playerUuid, int reputation, int completedContracts, int failedContracts) {
+    public PlayerStats(UUID playerUuid, int reputation, int completedContracts, int failedContracts, int contractXp) {
         this.playerUuid = playerUuid;
         this.reputation = reputation;
         this.completedContracts = completedContracts;
         this.failedContracts = failedContracts;
+        this.contractXp = Math.max(0, contractXp);
     }
 
     public UUID playerUuid() {
@@ -41,5 +43,13 @@ public final class PlayerStats {
 
     public void incrementFailedContracts() {
         this.failedContracts++;
+    }
+
+    public int contractXp() {
+        return contractXp;
+    }
+
+    public void addContractXp(int value) {
+        contractXp = Math.max(0, contractXp + Math.max(0, value));
     }
 }

@@ -27,7 +27,7 @@ import ua.grigo.frontiercontracts.util.MessageService;
 import ua.grigo.frontiercontracts.util.TextUtil;
 
 public final class MenuService {
-    private static final int[] BOARD_TASK_SLOTS = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25};
+    private static final int[] BOARD_TASK_SLOTS = {11, 12, 13, 14, 15};
     private static final int[] REGIONAL_SLOTS = {10, 11, 12, 13, 14, 15, 16};
     private static final int[] GLOBAL_SLOTS = {28, 29, 30, 31, 32, 33};
 
@@ -288,6 +288,8 @@ public final class MenuService {
         }
         lore.add("&7Refresh: &f" + TextUtil.formatDuration(Math.max(0L, board.nextRefreshAtEpochSeconds() - (System.currentTimeMillis() / 1000L))));
         lore.add("&7Reputation: &b" + contractService.getSettlementReputation(player.getUniqueId(), board.id()));
+        lore.add("&7Settlement trust: &a" + contractService.getSettlementTrust(board.id()));
+        lore.add("&7Community level: &f" + contractService.communityLevel());
         lore.add("&7Regional pool: &f" + contractService.getRegionalOffers(board.id()).size());
         if (!board.validationErrors().isEmpty()) {
             lore.add("");
@@ -303,7 +305,7 @@ public final class MenuService {
 
     private ItemStack buildBoardOfferItem(ContractOffer offer) {
         List<String> lore = new ArrayList<>();
-        lore.add("&7Rank: &f" + offer.rank().name() + " &8- &7" + contractService.rankDescription(offer.rank()));
+        lore.add("&7Rank: &f" + contractService.rankLabel(offer) + " &8- &7" + contractService.rankDescription(offer.rank()));
         lore.add("&7Type: &f" + offer.type().displayName());
         lore.addAll(buildCompactProgressLore(offer));
         lore.add("&7Reward: &a" + summarizeReward(offer));
@@ -315,7 +317,7 @@ public final class MenuService {
     private ItemStack buildOfferItem(Player player, ContractOffer offer, PlayerContract activeContract, boolean acceptedBefore) {
         List<String> lore = new ArrayList<>();
         lore.add(messages.plain("gui.lore.scope", Map.of("%scope%", offer.scope().displayName())));
-        lore.add("&7Rank: &f" + offer.rank().name() + " &8- &7" + contractService.rankDescription(offer.rank()));
+        lore.add("&7Rank: &f" + contractService.rankLabel(offer) + " &8- &7" + contractService.rankDescription(offer.rank()));
         lore.add(messages.plain("gui.lore.difficulty", Map.of("%difficulty%", offer.difficulty())));
         lore.add(messages.plain("gui.lore.objective", Map.of("%objective%", contractService.objectiveLabel(offer))));
         lore.addAll(buildCompactProgressLore(offer));
@@ -348,7 +350,7 @@ public final class MenuService {
     private ItemStack buildDetailOfferItem(Player player, ContractOffer offer, PlayerContract activeContract, boolean acceptedBefore) {
         List<String> lore = new ArrayList<>();
         lore.add("&7Scope: &f" + offer.scope().displayName());
-        lore.add("&7Rank: &f" + offer.rank().name() + " &8- &7" + contractService.rankDescription(offer.rank()));
+        lore.add("&7Rank: &f" + contractService.rankLabel(offer) + " &8- &7" + contractService.rankDescription(offer.rank()));
         lore.add("&7Type: &f" + offer.type().displayName());
         lore.add("&7Difficulty: &f" + offer.difficulty());
         lore.add("");

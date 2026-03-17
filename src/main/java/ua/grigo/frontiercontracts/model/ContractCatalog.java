@@ -8,7 +8,10 @@ public record ContractCatalog(
     Map<ContractRank, String> rankDescriptions,
     RoadSettings roadSettings,
     ConstructionRules constructionRules,
-    List<ContractTemplate> templates
+    ProgressionSettings progressionSettings,
+    ProjectGenerationSettings projectGenerationSettings,
+    List<ContractTemplate> rankedTemplates,
+    List<ContractTemplate> projectTemplates
 ) {
     public ContractCatalog {
         EnumMap<ContractRank, String> defaults = new EnumMap<>(ContractRank.class);
@@ -21,10 +24,26 @@ public record ContractCatalog(
         rankDescriptions = Map.copyOf(defaults);
         roadSettings = roadSettings == null ? RoadSettings.defaults() : roadSettings;
         constructionRules = constructionRules == null ? ConstructionRules.defaults() : constructionRules;
-        templates = templates == null ? List.of() : List.copyOf(templates);
+        progressionSettings = progressionSettings == null ? ProgressionSettings.defaults() : progressionSettings;
+        projectGenerationSettings = projectGenerationSettings == null
+            ? ProjectGenerationSettings.defaults()
+            : projectGenerationSettings;
+        rankedTemplates = rankedTemplates == null ? List.of() : List.copyOf(rankedTemplates);
+        projectTemplates = projectTemplates == null ? List.of() : List.copyOf(projectTemplates);
     }
 
     public String rankDescription(ContractRank rank) {
+        if (rank == null) {
+            return "Project";
+        }
         return rankDescriptions.getOrDefault(rank, rank.name());
+    }
+
+    public List<ContractTemplate> rankedTemplates(ContractScope scope) {
+        return rankedTemplates.stream().filter(template -> template.scope() == scope).toList();
+    }
+
+    public List<ContractTemplate> projectTemplates(ContractScope scope) {
+        return projectTemplates.stream().filter(template -> template.scope() == scope).toList();
     }
 }

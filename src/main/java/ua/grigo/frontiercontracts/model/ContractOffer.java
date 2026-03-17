@@ -30,6 +30,7 @@ public final class ContractOffer {
     private final RewardBundle rewards;
     private final RewardBundle bonusReward;
     private final BonusConfig bonusConfig;
+    private final boolean specialOffer;
     private boolean active;
 
     public ContractOffer(
@@ -57,6 +58,7 @@ public final class ContractOffer {
         RewardBundle rewards,
         RewardBundle bonusReward,
         BonusConfig bonusConfig,
+        boolean specialOffer,
         boolean active
     ) {
         this.id = id;
@@ -67,7 +69,7 @@ public final class ContractOffer {
         this.targetBoardId = targetBoardId;
         this.ownerUuid = ownerUuid;
         this.type = type;
-        this.rank = rank == null ? ContractRank.C : rank;
+        this.rank = rank;
         this.difficulty = difficulty;
         this.requirements = requirements == null ? List.of() : requirements.stream().map(ContractRequirement::copy).toList();
         this.metadata = metadata == null ? ConstructionMetadata.empty() : metadata;
@@ -84,6 +86,7 @@ public final class ContractOffer {
         this.rewards = rewards == null ? RewardBundle.empty() : rewards;
         this.bonusReward = bonusReward == null ? RewardBundle.empty() : bonusReward;
         this.bonusConfig = bonusConfig == null ? new BonusConfig(1.0D) : bonusConfig;
+        this.specialOffer = specialOffer;
         this.active = active;
     }
 
@@ -111,6 +114,7 @@ public final class ContractOffer {
     public RewardBundle rewards() { return rewards; }
     public RewardBundle bonusReward() { return bonusReward; }
     public BonusConfig bonusConfig() { return bonusConfig; }
+    public boolean specialOffer() { return specialOffer; }
     public boolean active() { return active; }
     public void setActive(boolean active) { this.active = active; }
 
@@ -158,6 +162,10 @@ public final class ContractOffer {
 
     public boolean isConstruction() {
         return type == ContractType.CONSTRUCTION;
+    }
+
+    public boolean isProjectOffer() {
+        return rank == null;
     }
 
     public boolean requiresWorldValidation() {

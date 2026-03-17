@@ -25,6 +25,7 @@ import ua.grigo.frontiercontracts.model.PlayerContractStatus;
 import ua.grigo.frontiercontracts.model.PlayerStats;
 import ua.grigo.frontiercontracts.model.RewardBundle;
 import ua.grigo.frontiercontracts.model.RewardItem;
+import ua.grigo.frontiercontracts.model.SettlementProgress;
 import ua.grigo.frontiercontracts.model.SettlementReputation;
 import ua.grigo.frontiercontracts.util.ContractDataCodec;
 import ua.grigo.frontiercontracts.util.RewardBundleCodec;
@@ -75,6 +76,7 @@ public final class StorageService {
                     reward_blob TEXT NULL,
                     bonus_reward_blob TEXT NULL,
                     bonus_no_death_multiplier REAL NOT NULL,
+                    special_offer INTEGER NOT NULL DEFAULT 0,
                     active INTEGER NOT NULL
                 )
                 """);
@@ -104,7 +106,8 @@ public final class StorageService {
                     player_uuid TEXT PRIMARY KEY,
                     reputation INTEGER NOT NULL,
                     completed_contracts INTEGER NOT NULL,
-                    failed_contracts INTEGER NOT NULL
+                    failed_contracts INTEGER NOT NULL,
+                    contract_xp INTEGER NOT NULL DEFAULT 0
                 )
                 """);
 
@@ -115,6 +118,20 @@ public final class StorageService {
                     reputation INTEGER NOT NULL DEFAULT 0,
                     updated_at INTEGER NOT NULL,
                     PRIMARY KEY (board_id, player_uuid)
+                )
+                """);
+
+            statement.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS settlement_progress (
+                    board_id TEXT PRIMARY KEY,
+                    trust INTEGER NOT NULL DEFAULT 0,
+                    routine_completed INTEGER NOT NULL DEFAULT 0,
+                    project_completed INTEGER NOT NULL DEFAULT 0,
+                    project_cooldown_until INTEGER NOT NULL DEFAULT 0,
+                    ranked_without_high INTEGER NOT NULL DEFAULT 0,
+                    ranked_without_elite INTEGER NOT NULL DEFAULT 0,
+                    recent_variants_blob TEXT NULL,
+                    updated_at INTEGER NOT NULL DEFAULT 0
                 )
                 """);
 
@@ -132,7 +149,9 @@ public final class StorageService {
             migrateAddColumnIfMissing(statement, "generated_offers", "public_offer", "INTEGER NOT NULL DEFAULT 1");
             migrateAddColumnIfMissing(statement, "generated_offers", "reward_blob", "TEXT NULL");
             migrateAddColumnIfMissing(statement, "generated_offers", "bonus_reward_blob", "TEXT NULL");
+            migrateAddColumnIfMissing(statement, "generated_offers", "special_offer", "INTEGER NOT NULL DEFAULT 0");
             migrateAddColumnIfMissing(statement, "player_contracts", "board_id", "TEXT NULL");
+            migrateAddColumnIfMissing(statement, "player_stats", "contract_xp", "INTEGER NOT NULL DEFAULT 0");
         }
     }
 
@@ -182,7 +201,7 @@ public final class StorageService {
                     resultSet.getString("target_board_id"),
                     parseUuid(resultSet.getString("owner_uuid")),
                     ContractType.valueOf(resultSet.getString("type")),
-                    ContractRank.fromString(getString(resultSet, "rank")),
+                    parseRank(resultSet),
                     resultSet.getString("difficulty"),
                     requirements,
                     decodeMetadata(resultSet),
@@ -198,6 +217,7 @@ public final class StorageService {
                     decodeRewardBundle(resultSet),
                     RewardBundleCodec.decode(getString(resultSet, "bonus_reward_blob")),
                     new BonusConfig(resultSet.getDouble("bonus_no_death_multiplier")),
+                    getBoolean(resultSet, "special_offer", false),
                     resultSet.getInt("active") == 1
                 );
                 offers.put(offer.id(), offer);
@@ -215,8 +235,8 @@ public final class StorageService {
                 contract_duration_seconds, created_at, offer_expires_at,
                 icon_material, title, description,
                 reward_money, reward_reputation, reward_item_material, reward_item_amount,
-                reward_blob, bonus_reward_blob, bonus_no_death_multiplier, active
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                reward_blob, bonus_reward_blob, bonus_no_death_multiplier, special_offer, active
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """)) {
             RewardItem legacyItem = offer.rewards().itemRewards().isEmpty()
                 ? new RewardItem(Material.AIR, 0)
@@ -230,7 +250,7 @@ public final class StorageService {
             statement.setString(6, offer.sourceBoardId());
             statement.setString(7, offer.targetBoardId());
             statement.setString(8, offer.type().name());
-            statement.setString(9, offer.rank().name());
+            statement.setString(9, offer.rank() == null ? null : offer.rank().name());
             statement.setString(10, offer.difficulty());
             statement.setString(11, offer.objectiveKey());
             statement.setInt(12, offer.objectiveAmount());
@@ -255,7 +275,8 @@ public final class StorageService {
             statement.setString(31, RewardBundleCodec.encode(offer.rewards()));
             statement.setString(32, RewardBundleCodec.encode(offer.bonusReward()));
             statement.setDouble(33, offer.bonusConfig().noDeathMoneyMultiplier());
-            statement.setInt(34, offer.active() ? 1 : 0);
+            statement.setInt(34, offer.specialOffer() ? 1 : 0);
+            statement.setInt(35, offer.active() ? 1 : 0);
             statement.executeUpdate();
         }
     }
@@ -346,7 +367,8 @@ public final class StorageService {
                     uuid,
                     resultSet.getInt("reputation"),
                     resultSet.getInt("completed_contracts"),
-                    resultSet.getInt("failed_contracts")
+                    resultSet.getInt("failed_contracts"),
+                    getInt(resultSet, "contract_xp", 0)
                 ));
             }
         }
@@ -356,13 +378,56 @@ public final class StorageService {
     public void saveStats(PlayerStats stats) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
             INSERT OR REPLACE INTO player_stats
-            (player_uuid, reputation, completed_contracts, failed_contracts)
-            VALUES (?,?,?,?)
+            (player_uuid, reputation, completed_contracts, failed_contracts, contract_xp)
+            VALUES (?,?,?,?,?)
             """)) {
             statement.setString(1, stats.playerUuid().toString());
             statement.setInt(2, stats.reputation());
             statement.setInt(3, stats.completedContracts());
             statement.setInt(4, stats.failedContracts());
+            statement.setInt(5, stats.contractXp());
+            statement.executeUpdate();
+        }
+    }
+
+    public Map<String, SettlementProgress> loadSettlementProgress() throws SQLException {
+        Map<String, SettlementProgress> result = new HashMap<>();
+        try (PreparedStatement statement = connection.prepareStatement("SELECT * FROM settlement_progress");
+             ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                SettlementProgress progress = new SettlementProgress(
+                    resultSet.getString("board_id"),
+                    resultSet.getInt("trust"),
+                    resultSet.getInt("routine_completed"),
+                    resultSet.getInt("project_completed"),
+                    resultSet.getLong("project_cooldown_until"),
+                    resultSet.getInt("ranked_without_high"),
+                    resultSet.getInt("ranked_without_elite"),
+                    ContractDataCodec.decodeStringList(getString(resultSet, "recent_variants_blob")),
+                    resultSet.getLong("updated_at")
+                );
+                result.put(progress.boardId(), progress);
+            }
+        }
+        return result;
+    }
+
+    public void saveSettlementProgress(SettlementProgress progress) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+            INSERT OR REPLACE INTO settlement_progress
+            (board_id, trust, routine_completed, project_completed, project_cooldown_until,
+             ranked_without_high, ranked_without_elite, recent_variants_blob, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?)
+            """)) {
+            statement.setString(1, progress.boardId());
+            statement.setInt(2, progress.trust());
+            statement.setInt(3, progress.routineCompleted());
+            statement.setInt(4, progress.projectCompleted());
+            statement.setLong(5, progress.projectCooldownUntil());
+            statement.setInt(6, progress.rankedWithoutHigh());
+            statement.setInt(7, progress.rankedWithoutElite());
+            statement.setString(8, ContractDataCodec.encodeStringList(progress.recentVariants()));
+            statement.setLong(9, progress.updatedAt());
             statement.executeUpdate();
         }
     }
@@ -467,6 +532,16 @@ public final class StorageService {
 
     private UUID parseUuid(String raw) {
         return raw == null || raw.isBlank() ? null : UUID.fromString(raw);
+    }
+
+    private ContractRank parseRank(ResultSet resultSet) throws SQLException {
+        String raw = getString(resultSet, "rank");
+        ContractRank parsed = ContractRank.parseNullable(raw);
+        if (parsed != null) {
+            return parsed;
+        }
+        ContractType type = ContractType.valueOf(resultSet.getString("type"));
+        return type == ContractType.CONSTRUCTION ? null : ContractRank.C;
     }
 
     private Material parseMaterial(String raw, Material fallback) {

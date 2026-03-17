@@ -31,6 +31,7 @@ public final class ContractTemplate {
     private final RewardBundle bonusReward;
     private final BonusConfig bonusConfig;
     private final List<String> poolTags;
+    private final ProjectTrigger projectTrigger;
 
     public ContractTemplate(
         String key,
@@ -50,12 +51,13 @@ public final class ContractTemplate {
         RewardBundle rewards,
         RewardBundle bonusReward,
         BonusConfig bonusConfig,
-        List<String> poolTags
+        List<String> poolTags,
+        ProjectTrigger projectTrigger
     ) {
         this.key = key;
         this.scope = scope;
         this.type = type;
-        this.rank = rank == null ? ContractRank.C : rank;
+        this.rank = rank;
         this.difficulty = difficulty;
         this.weight = weight;
         this.requirements = requirements == null ? List.of() : requirements.stream().map(ContractRequirement::copy).toList();
@@ -71,6 +73,7 @@ public final class ContractTemplate {
         this.bonusReward = bonusReward == null ? RewardBundle.empty() : bonusReward;
         this.bonusConfig = bonusConfig == null ? new BonusConfig(1.0D) : bonusConfig;
         this.poolTags = poolTags == null ? List.of() : List.copyOf(poolTags);
+        this.projectTrigger = projectTrigger == null ? ProjectTrigger.none() : projectTrigger;
     }
 
     public String key() { return key; }
@@ -91,6 +94,11 @@ public final class ContractTemplate {
     public RewardBundle bonusReward() { return bonusReward; }
     public BonusConfig bonusConfig() { return bonusConfig; }
     public List<String> poolTags() { return poolTags; }
+    public ProjectTrigger projectTrigger() { return projectTrigger; }
+
+    public boolean isProjectTemplate() {
+        return projectTrigger.enabled();
+    }
 
     public boolean isAvailableToBoard(List<String> boardPools) {
         if (poolTags.isEmpty()) {
@@ -111,7 +119,8 @@ public final class ContractTemplate {
         double reputationModifier,
         long nowEpochSeconds,
         PluginSettings settings,
-        ConstructionSite site
+        ConstructionSite site,
+        boolean specialOffer
     ) {
         List<ContractRequirement> scaledRequirements = new ArrayList<>();
         for (ContractRequirement requirement : requirements) {
@@ -160,6 +169,7 @@ public final class ContractTemplate {
             scaledRewards,
             scaledBonusReward,
             bonusConfig,
+            specialOffer,
             true
         );
     }

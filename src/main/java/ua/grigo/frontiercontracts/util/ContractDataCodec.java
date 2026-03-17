@@ -175,4 +175,26 @@ public final class ContractDataCodec {
             return fallback;
         }
     }
+
+    public static String encodeStringList(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return "";
+        }
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("values", values);
+        return yaml.saveToString();
+    }
+
+    public static List<String> decodeStringList(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        YamlConfiguration yaml = new YamlConfiguration();
+        try {
+            yaml.loadFromString(raw);
+        } catch (InvalidConfigurationException exception) {
+            return List.of();
+        }
+        return List.copyOf(yaml.getStringList("values"));
+    }
 }

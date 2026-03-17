@@ -3,6 +3,8 @@ package ua.grigo.frontiercontracts.contract;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,6 +31,7 @@ import ua.grigo.frontiercontracts.model.Board;
 import ua.grigo.frontiercontracts.model.ConstructionMetadata;
 import ua.grigo.frontiercontracts.model.ConstructionRules;
 import ua.grigo.frontiercontracts.model.ConstructionSite;
+import ua.grigo.frontiercontracts.model.AntiFrustrationSettings;
 import ua.grigo.frontiercontracts.model.ContractCatalog;
 import ua.grigo.frontiercontracts.model.ContractOffer;
 import ua.grigo.frontiercontracts.model.ContractRank;
@@ -39,8 +42,11 @@ import ua.grigo.frontiercontracts.model.ContractType;
 import ua.grigo.frontiercontracts.model.PlayerContract;
 import ua.grigo.frontiercontracts.model.PlayerContractStatus;
 import ua.grigo.frontiercontracts.model.PlayerStats;
+import ua.grigo.frontiercontracts.model.ProgressionSettings;
+import ua.grigo.frontiercontracts.model.ProjectGenerationSettings;
 import ua.grigo.frontiercontracts.model.RewardBundle;
 import ua.grigo.frontiercontracts.model.RewardItem;
+import ua.grigo.frontiercontracts.model.SettlementProgress;
 import ua.grigo.frontiercontracts.model.SettlementReputation;
 import ua.grigo.frontiercontracts.storage.StorageService;
 import ua.grigo.frontiercontracts.util.ItemUtil;
@@ -57,13 +63,14 @@ public final class ContractService {
     private final ConstructionSitePlanner sitePlanner;
 
     private PluginSettings settings;
-    private ContractCatalog catalog = new ContractCatalog(Map.of(), null, null, List.of());
+    private ContractCatalog catalog = new ContractCatalog(Map.of(), null, null, null, null, List.of(), List.of());
 
     private final Map<String, Map<String, ContractOffer>> offersByBoard = new HashMap<>();
     private final Map<String, ContractOffer> globalOffers = new LinkedHashMap<>();
     private final Map<UUID, Map<String, PlayerContract>> openContracts = new HashMap<>();
     private final Map<UUID, PlayerStats> stats = new HashMap<>();
     private final Map<String, SettlementReputation> settlementRep = new HashMap<>();
+    private final Map<String, SettlementProgress> settlementProgress = new HashMap<>();
 
     private boolean economyWarningShown;
 
@@ -94,6 +101,7 @@ public final class ContractService {
         openContracts.clear();
         stats.clear();
         settlementRep.clear();
+        settlementProgress.clear();
 
         for (ContractOffer offer : storage.loadOffers().values()) {
             placeOffer(offer);
@@ -101,6 +109,7 @@ public final class ContractService {
         openContracts.putAll(storage.loadOpenContracts());
         stats.putAll(storage.loadStats());
         settlementRep.putAll(storage.loadSettlementReputation());
+        settlementProgress.putAll(storage.loadSettlementProgress());
 
         cleanupExpiredContent();
         ensureAllBoardPools();
@@ -213,25 +222,34 @@ public final class ContractService {
     private void ensureBoardPool(Board board) {
         normalizePhysicalBoard(board);
         trimExtraLocalOffers(board);
-        int localCurrent = countActiveOffersForBoard(board.id(), ContractScope.LOCAL);
-        while (localCurrent < board.localOfferSlots()) {
-            ContractOffer offer = generateOffer(board, ContractScope.LOCAL);
+        SettlementProgress progress = getSettlementProgress(board.id());
+        int rankedLocalCurrent = countActiveOffersForBoard(board.id(), ContractScope.LOCAL, false);
+        while (rankedLocalCurrent < 4) {
+            ContractOffer offer = generateRankedOffer(board, ContractScope.LOCAL, localRankProfile(rankedLocalCurrent), false, progress);
             if (offer == null) {
                 break;
             }
-            offersByBoard.computeIfAbsent(board.id(), ignored -> new LinkedHashMap<>()).put(offer.id(), offer);
-            persistOffer(offer);
-            localCurrent++;
+            registerGeneratedOffer(board, offer, progress);
+            rankedLocalCurrent++;
+        }
+
+        int localSpecialCurrent = countActiveOffersForBoard(board.id(), ContractScope.LOCAL, true);
+        while (localSpecialCurrent < 1) {
+            ContractOffer offer = generateSpecialOffer(board, ContractScope.LOCAL, progress);
+            if (offer == null) {
+                break;
+            }
+            registerGeneratedOffer(board, offer, progress);
+            localSpecialCurrent++;
         }
 
         int regionalCurrent = countActiveOffersForBoard(board.id(), ContractScope.REGIONAL);
         while (regionalCurrent < settings.regionalOfferSlots()) {
-            ContractOffer offer = generateOffer(board, ContractScope.REGIONAL);
+            ContractOffer offer = generateRegionalOffer(board, progress, regionalCurrent == 0);
             if (offer == null) {
                 break;
             }
-            offersByBoard.computeIfAbsent(board.id(), ignored -> new LinkedHashMap<>()).put(offer.id(), offer);
-            persistOffer(offer);
+            registerGeneratedOffer(board, offer, progress);
             regionalCurrent++;
         }
 
@@ -265,31 +283,94 @@ public final class ContractService {
             .count();
     }
 
-    private ContractOffer generateOffer(Board board, ContractScope scope) {
+    private ContractOffer generateGlobalOffer(long now) {
+        ContractTemplate template = chooseRankedTemplate(
+            null,
+            ContractScope.GLOBAL,
+            EnumSet.allOf(ContractRank.class),
+            null,
+            false
+        );
+        if (template == null) {
+            return null;
+        }
+        return template.createOffer(null, 1.0D, 1.0D, 1.0D, now, settings, null, false);
+    }
+
+    private int countActiveOffersForBoard(String boardId, ContractScope scope, boolean specialOffer) {
+        Map<String, ContractOffer> pool = offersByBoard.get(boardId);
+        if (pool == null) {
+            return 0;
+        }
+        return (int) pool.values().stream()
+            .filter(offer -> offer.active() && offer.scope() == scope && offer.specialOffer() == specialOffer)
+            .count();
+    }
+
+    private void registerGeneratedOffer(Board board, ContractOffer offer, SettlementProgress progress) {
+        if (board != null && offer.isBoardBackedShared()) {
+            offersByBoard.computeIfAbsent(board.id(), ignored -> new LinkedHashMap<>()).put(offer.id(), offer);
+            if (!offer.isProjectOffer()) {
+                progress.recordRankedGeneration(offer.rank(), offer.templateKey(), antiFrustration());
+                progress.setUpdatedAt(now());
+                persistSettlementProgress(progress);
+            } else {
+                progress.rememberVariant(offer.templateKey(), antiFrustration().recentVariantMemory());
+                progress.setUpdatedAt(now());
+                persistSettlementProgress(progress);
+            }
+        } else {
+            globalOffers.put(offer.id(), offer);
+        }
+        persistOffer(offer);
+    }
+
+    private ContractOffer generateRegionalOffer(Board board, SettlementProgress progress, boolean preferProject) {
+        if (preferProject) {
+            ContractOffer project = generateProjectOffer(board, ContractScope.REGIONAL, progress, true);
+            if (project != null) {
+                return project;
+            }
+        }
+        return generateRankedOffer(board, ContractScope.REGIONAL, EnumSet.allOf(ContractRank.class), false, progress);
+    }
+
+    private ContractOffer generateSpecialOffer(Board board, ContractScope scope, SettlementProgress progress) {
+        if (projectSettings().preferProjectInSpecialSlot()) {
+            ContractOffer project = generateProjectOffer(board, scope, progress, true);
+            if (project != null) {
+                return project;
+            }
+        }
+        ContractOffer ranked = generateRankedOffer(board, scope, EnumSet.of(ContractRank.B, ContractRank.A, ContractRank.S), true, progress);
+        if (ranked != null) {
+            return ranked;
+        }
+        return generateRankedOffer(board, scope, EnumSet.allOf(ContractRank.class), true, progress);
+    }
+
+    private ContractOffer generateProjectOffer(Board board, ContractScope scope, SettlementProgress progress, boolean specialOffer) {
         long now = now();
-        List<ContractTemplate> pool = eligibleTemplates(board, scope);
-        if (pool.isEmpty()) {
+        List<ContractTemplate> candidates = catalog.projectTemplates(scope).stream()
+            .filter(template -> board == null || template.isAvailableToBoard(board.contractPools()))
+            .filter(template -> board == null || isProjectEligible(template, progress, now))
+            .filter(template -> board == null || !isTemplateActive(board.id(), scope, template.key()))
+            .toList();
+        if (candidates.isEmpty()) {
             return null;
         }
 
-        List<String> activeKeys = offersByBoard.getOrDefault(board.id(), Map.of()).values().stream()
-            .filter(offer -> offer.active() && offer.scope() == scope)
-            .map(ContractOffer::templateKey)
+        List<ContractTemplate> preferred = board == null ? candidates : candidates.stream()
+            .filter(template -> !progress.hasRecentVariant(template.key()))
             .toList();
-
-        List<ContractTemplate> preferred = pool.stream()
-            .filter(template -> !activeKeys.contains(template.key()))
-            .toList();
-        List<ContractTemplate> selection = new ArrayList<>(preferred.isEmpty() ? pool : preferred);
+        List<ContractTemplate> selection = new ArrayList<>(preferred.isEmpty() ? candidates : preferred);
         while (!selection.isEmpty()) {
             ContractTemplate template = weightedPick(selection, board);
             if (template == null) {
                 return null;
             }
-            ConstructionSite site = template.type() == ContractType.CONSTRUCTION
-                ? sitePlanner.plan(board, template)
-                : null;
-            if (template.type() == ContractType.CONSTRUCTION && site == null) {
+            ConstructionSite site = sitePlanner.plan(board, template);
+            if (site == null) {
                 selection.remove(template);
                 continue;
             }
@@ -300,34 +381,92 @@ public final class ContractService {
                 board.reputationModifier(),
                 now,
                 settings,
-                site
+                site,
+                specialOffer
             );
         }
         return null;
     }
 
-    private ContractOffer generateGlobalOffer(long now) {
-        List<ContractTemplate> globalTemplates = catalog.templates().stream()
-            .filter(template -> template.scope() == ContractScope.GLOBAL)
-            .toList();
-        ContractTemplate template = weightedPickFlat(globalTemplates);
+    private ContractOffer generateRankedOffer(
+        Board board,
+        ContractScope scope,
+        EnumSet<ContractRank> allowedRanks,
+        boolean specialOffer,
+        SettlementProgress progress
+    ) {
+        long now = now();
+        ContractTemplate template = chooseRankedTemplate(board, scope, allowedRanks, progress, specialOffer);
         if (template == null) {
             return null;
         }
-        return template.createOffer(null, 1.0D, 1.0D, 1.0D, now, settings, null);
+        return template.createOffer(
+            board == null ? null : board.id(),
+            board == null ? 1.0D : board.difficultyModifier(),
+            board == null ? 1.0D : board.rewardModifier(),
+            board == null ? 1.0D : board.reputationModifier(),
+            now,
+            settings,
+            null,
+            specialOffer
+        );
     }
 
-    private List<ContractTemplate> eligibleTemplates(Board board, ContractScope scope) {
-        return catalog.templates().stream()
-            .filter(template -> template.scope() == scope)
-            .filter(template -> template.isAvailableToBoard(board.contractPools()))
+    private ContractTemplate chooseRankedTemplate(
+        Board board,
+        ContractScope scope,
+        EnumSet<ContractRank> allowedRanks,
+        SettlementProgress progress,
+        boolean specialOffer
+    ) {
+        List<ContractTemplate> pool = eligibleRankedTemplates(board, scope);
+        if (pool.isEmpty()) {
+            return null;
+        }
+
+        Map<ContractRank, Integer> weights = buildRankWeights(progress, allowedRanks);
+        List<ContractRank> rankOrder = weightedRankOrder(weights, allowedRanks);
+        for (ContractRank rank : rankOrder) {
+            List<ContractTemplate> candidates = pool.stream()
+                .filter(template -> template.rank() == rank)
+                .filter(template -> board == null || !isTemplateActive(board.id(), scope, template.key()))
+                .toList();
+            if (candidates.isEmpty()) {
+                continue;
+            }
+            List<ContractTemplate> preferred = (board == null || progress == null) ? candidates : candidates.stream()
+                .filter(template -> !progress.hasRecentVariant(template.key()))
+                .toList();
+            List<ContractTemplate> selection = new ArrayList<>(preferred.isEmpty() ? candidates : preferred);
+            ContractTemplate picked = weightedPick(selection, board);
+            if (picked != null) {
+                return picked;
+            }
+        }
+
+        if (specialOffer && !allowedRanks.containsAll(EnumSet.allOf(ContractRank.class))) {
+            return chooseRankedTemplate(board, scope, EnumSet.allOf(ContractRank.class), progress, false);
+        }
+        return null;
+    }
+
+    private List<ContractTemplate> eligibleRankedTemplates(Board board, ContractScope scope) {
+        return catalog.rankedTemplates(scope).stream()
+            .filter(template -> board == null || template.isAvailableToBoard(board.contractPools()))
             .toList();
+    }
+
+    private boolean isTemplateActive(String boardId, ContractScope scope, String templateKey) {
+        return offersByBoard.getOrDefault(boardId, Map.of()).values().stream()
+            .filter(ContractOffer::active)
+            .filter(offer -> offer.scope() == scope)
+            .anyMatch(offer -> offer.templateKey().equals(templateKey));
     }
 
     private ContractTemplate weightedPick(List<ContractTemplate> pool, Board board) {
         double totalWeight = 0.0D;
         for (ContractTemplate template : pool) {
-            totalWeight += template.weight() * board.categoryWeight(template.type());
+            totalWeight += template.weight() * (board == null ? 1.0D : board.categoryWeight(template.type()));
         }
         if (totalWeight <= 0.0D) {
             return null;
@@ -335,23 +474,7 @@ public final class ContractService {
         double roll = Math.random() * totalWeight;
         double cumulative = 0.0D;
         for (ContractTemplate template : pool) {
-            cumulative += template.weight() * board.categoryWeight(template.type());
-            if (roll < cumulative) {
-                return template;
-            }
-        }
-        return pool.getFirst();
-    }
-
-    private ContractTemplate weightedPickFlat(List<ContractTemplate> pool) {
-        int total = pool.stream().mapToInt(ContractTemplate::weight).sum();
-        if (total <= 0) {
-            return null;
-        }
-        int roll = (int) (Math.random() * total);
-        int cumulative = 0;
-        for (ContractTemplate template : pool) {
-            cumulative += template.weight();
+            cumulative += template.weight() * (board == null ? 1.0D : board.categoryWeight(template.type()));
             if (roll < cumulative) {
                 return template;
             }
@@ -362,14 +485,18 @@ public final class ContractService {
     public List<ContractOffer> getLocalOffers(String boardId) {
         return offersByBoard.getOrDefault(boardId, Map.of()).values().stream()
             .filter(offer -> offer.active() && offer.scope() == ContractScope.LOCAL)
-            .sorted(Comparator.comparingLong(ContractOffer::createdAtEpochSeconds))
+            .sorted(Comparator
+                .comparing(ContractOffer::specialOffer)
+                .thenComparingLong(ContractOffer::createdAtEpochSeconds))
             .toList();
     }
 
     public List<ContractOffer> getRegionalOffers(String boardId) {
         return offersByBoard.getOrDefault(boardId, Map.of()).values().stream()
             .filter(offer -> offer.active() && offer.scope() == ContractScope.REGIONAL)
-            .sorted(Comparator.comparingLong(ContractOffer::createdAtEpochSeconds))
+            .sorted(Comparator
+                .comparing((ContractOffer offer) -> !offer.isProjectOffer())
+                .thenComparingLong(ContractOffer::createdAtEpochSeconds))
             .toList();
     }
 
@@ -380,7 +507,9 @@ public final class ContractService {
                 .filter(offer -> offer.active() && offer.scope() == ContractScope.REGIONAL)
                 .forEach(offers::add);
         }
-        offers.sort(Comparator.comparingLong(ContractOffer::createdAtEpochSeconds));
+        offers.sort(Comparator
+            .comparing((ContractOffer offer) -> !offer.isProjectOffer())
+            .thenComparingLong(ContractOffer::createdAtEpochSeconds));
         return offers;
     }
 
@@ -622,6 +751,10 @@ public final class ContractService {
         return reputation == null ? 0 : reputation.reputation();
     }
 
+    public int getSettlementTrust(String boardId) {
+        return getSettlementProgress(boardId).trust();
+    }
+
     public void markDeath(UUID playerUuid) {
         Map<String, PlayerContract> contracts = openContracts.get(playerUuid);
         if (contracts == null) {
@@ -636,7 +769,7 @@ public final class ContractService {
     }
 
     public PlayerStats getStats(UUID playerUuid) {
-        return stats.computeIfAbsent(playerUuid, uuid -> new PlayerStats(uuid, 0, 0, 0));
+        return stats.computeIfAbsent(playerUuid, uuid -> new PlayerStats(uuid, 0, 0, 0, 0));
     }
 
     public String objectiveLabel(ContractOffer offer) {
@@ -652,6 +785,18 @@ public final class ContractService {
 
     public String rankDescription(ContractRank rank) {
         return catalog.rankDescription(rank);
+    }
+
+    public String rankLabel(ContractOffer offer) {
+        return offer.rank() == null ? "Project" : offer.rank().name();
+    }
+
+    public int contractorLevel(UUID playerUuid) {
+        return progression().levelForXp(getStats(playerUuid).contractXp());
+    }
+
+    public int communityLevel() {
+        return effectiveGenerationLevel(null);
     }
 
     public ConstructionRules constructionRules() {
@@ -726,6 +871,7 @@ public final class ContractService {
         if (paidReward.reputation() > 0) {
             playerStats.addReputation(paidReward.reputation());
         }
+        playerStats.addContractXp(progression().xpFor(offer.rank()));
         persistStats(playerStats);
         messages.send(player, "contracts.completed", Map.of("%title%", offer.title()));
     }
@@ -742,7 +888,23 @@ public final class ContractService {
         if (totalReward.reputation() > 0) {
             playerStats.addReputation(totalReward.reputation());
         }
+        playerStats.addContractXp(progression().xpFor(offer.rank()));
         persistStats(playerStats);
+
+        SettlementProgress progress = getSettlementProgress(board.id());
+        int trustGain = Math.max(
+            offer.isProjectOffer() ? projectSettings().trustPerProjectCompletion() : projectSettings().trustPerRoutineCompletion(),
+            totalReward.reputation()
+        );
+        progress.addTrust(trustGain);
+        if (offer.isProjectOffer()) {
+            progress.incrementProjectCompleted();
+            progress.setProjectCooldownUntil(now() + projectSettings().baseProjectCooldownSeconds());
+        } else {
+            progress.incrementRoutineCompleted();
+        }
+        progress.setUpdatedAt(now());
+        persistSettlementProgress(progress);
 
         messages.send(player, "contracts.completed", Map.of("%title%", offer.title()));
         messages.send(player, "contracts.complete-summary", Map.of(
@@ -818,18 +980,26 @@ public final class ContractService {
             return;
         }
 
-        List<ContractOffer> localOffers = pool.values().stream()
+        List<ContractOffer> rankedLocal = pool.values().stream()
             .filter(ContractOffer::active)
             .filter(ContractOffer::isBoardLocal)
+            .filter(offer -> !offer.specialOffer())
             .sorted(Comparator.comparingLong(ContractOffer::createdAtEpochSeconds))
             .toList();
-
-        if (localOffers.size() <= BoardService.PHYSICAL_TASK_SIGN_SLOTS) {
-            return;
+        for (int index = 4; index < rankedLocal.size(); index++) {
+            ContractOffer offer = rankedLocal.get(index);
+            offer.setActive(false);
+            persistOffer(offer);
         }
 
-        for (int index = BoardService.PHYSICAL_TASK_SIGN_SLOTS; index < localOffers.size(); index++) {
-            ContractOffer offer = localOffers.get(index);
+        List<ContractOffer> specialLocal = pool.values().stream()
+            .filter(ContractOffer::active)
+            .filter(ContractOffer::isBoardLocal)
+            .filter(ContractOffer::specialOffer)
+            .sorted(Comparator.comparingLong(ContractOffer::createdAtEpochSeconds))
+            .toList();
+        for (int index = 1; index < specialLocal.size(); index++) {
+            ContractOffer offer = specialLocal.get(index);
             offer.setActive(false);
             persistOffer(offer);
         }
@@ -931,6 +1101,115 @@ public final class ContractService {
         return true;
     }
 
+    private EnumSet<ContractRank> localRankProfile(int slotIndex) {
+        return switch (slotIndex) {
+            case 0 -> EnumSet.of(ContractRank.F, ContractRank.E, ContractRank.D);
+            case 1 -> EnumSet.of(ContractRank.F, ContractRank.E, ContractRank.D, ContractRank.C);
+            case 2 -> EnumSet.of(ContractRank.E, ContractRank.D, ContractRank.C, ContractRank.B);
+            default -> EnumSet.allOf(ContractRank.class);
+        };
+    }
+
+    private Map<ContractRank, Integer> buildRankWeights(SettlementProgress progress, EnumSet<ContractRank> allowedRanks) {
+        EnumMap<ContractRank, Integer> adjusted = new EnumMap<>(ContractRank.class);
+        Map<ContractRank, Integer> base = progression().weightsForLevel(effectiveGenerationLevel(progress));
+        for (ContractRank rank : ContractRank.values()) {
+            adjusted.put(rank, allowedRanks.contains(rank) ? Math.max(0, base.getOrDefault(rank, 0)) : 0);
+        }
+        if (progress != null) {
+            AntiFrustrationSettings antiFrustration = antiFrustration();
+            if (progress.rankedWithoutHigh() >= antiFrustration.highRankPityThreshold()) {
+                adjusted.computeIfPresent(ContractRank.B, (ignored, value) -> value + antiFrustration.highRankWeightBonus());
+                adjusted.computeIfPresent(ContractRank.A, (ignored, value) -> value + antiFrustration.highRankWeightBonus());
+                adjusted.computeIfPresent(ContractRank.S, (ignored, value) -> value + antiFrustration.highRankWeightBonus());
+            }
+            if (progress.rankedWithoutElite() >= antiFrustration.eliteRankPityThreshold()) {
+                adjusted.computeIfPresent(ContractRank.A, (ignored, value) -> value + antiFrustration.eliteRankWeightBonus());
+                adjusted.computeIfPresent(ContractRank.S, (ignored, value) -> value + antiFrustration.eliteRankWeightBonus());
+            }
+        }
+        return adjusted;
+    }
+
+    private List<ContractRank> weightedRankOrder(Map<ContractRank, Integer> weights, EnumSet<ContractRank> allowedRanks) {
+        List<ContractRank> order = new ArrayList<>();
+        EnumMap<ContractRank, Integer> remaining = new EnumMap<>(ContractRank.class);
+        for (ContractRank rank : ContractRank.values()) {
+            int weight = allowedRanks.contains(rank) ? Math.max(0, weights.getOrDefault(rank, 0)) : 0;
+            if (weight > 0) {
+                remaining.put(rank, weight);
+            }
+        }
+        while (!remaining.isEmpty()) {
+            int total = remaining.values().stream().mapToInt(Integer::intValue).sum();
+            if (total <= 0) {
+                break;
+            }
+            int roll = (int) (Math.random() * total);
+            int cumulative = 0;
+            ContractRank picked = null;
+            for (Map.Entry<ContractRank, Integer> entry : remaining.entrySet()) {
+                cumulative += entry.getValue();
+                if (roll < cumulative) {
+                    picked = entry.getKey();
+                    break;
+                }
+            }
+            if (picked == null) {
+                picked = remaining.keySet().iterator().next();
+            }
+            order.add(picked);
+            remaining.remove(picked);
+        }
+        for (ContractRank rank : allowedRanks) {
+            if (!order.contains(rank)) {
+                order.add(rank);
+            }
+        }
+        return order;
+    }
+
+    private int effectiveGenerationLevel(SettlementProgress progress) {
+        int communityLevel = stats.values().stream()
+            .mapToInt(playerStats -> progression().levelForXp(playerStats.contractXp()))
+            .max()
+            .orElse(1);
+        if (progress == null) {
+            return communityLevel;
+        }
+        int trustBonus = progress.trust() / projectSettings().trustLevelDivisor();
+        return Math.min(progression().maxLevel(), communityLevel + trustBonus);
+    }
+
+    private boolean isProjectEligible(ContractTemplate template, SettlementProgress progress, long now) {
+        if (progress == null || template == null || !template.isProjectTemplate()) {
+            return false;
+        }
+        return progress.trust() >= template.projectTrigger().minTrust()
+            && progress.routineCompleted() >= template.projectTrigger().minRoutineCompletions()
+            && progress.projectCompleted() >= template.projectTrigger().minProjectCompletions()
+            && now >= Math.max(progress.projectCooldownUntil(), 0L);
+    }
+
+    private SettlementProgress getSettlementProgress(String boardId) {
+        return settlementProgress.computeIfAbsent(
+            boardId,
+            ignored -> new SettlementProgress(boardId, 0, 0, 0, 0L, 0, 0, List.of(), now())
+        );
+    }
+
+    private ProgressionSettings progression() {
+        return catalog.progressionSettings();
+    }
+
+    private ProjectGenerationSettings projectSettings() {
+        return catalog.projectGenerationSettings();
+    }
+
+    private AntiFrustrationSettings antiFrustration() {
+        return progression().antiFrustration();
+    }
+
     private long now() {
         return System.currentTimeMillis() / 1000L;
     }
@@ -956,6 +1235,14 @@ public final class ContractService {
             storage.saveStats(playerStats);
         } catch (SQLException exception) {
             plugin.getLogger().warning("Could not save stats: " + exception.getMessage());
+        }
+    }
+
+    private void persistSettlementProgress(SettlementProgress progress) {
+        try {
+            storage.saveSettlementProgress(progress);
+        } catch (SQLException exception) {
+            plugin.getLogger().warning("Could not save settlement progress: " + exception.getMessage());
         }
     }
 }

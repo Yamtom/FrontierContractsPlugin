@@ -2,7 +2,6 @@ package ua.grigo.frontiercontracts.board;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import org.bukkit.Location;
 import org.bukkit.Server;
@@ -52,7 +51,6 @@ public final class BoardSignService {
             : localOffers.stream()
                 .filter(ContractOffer::active)
                 .filter(ContractOffer::isBoardLocal)
-                .sorted(Comparator.comparingLong(ContractOffer::createdAtEpochSeconds))
                 .limit(BoardLayout.TASK_SIGN_COUNT)
                 .toList();
 
