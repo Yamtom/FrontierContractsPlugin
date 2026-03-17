@@ -52,10 +52,10 @@ contracts:
 
 gui:
   sections:
-    global: "&6Global Offers"
+    regional: "&6Regional Projects"
+    global: "&bGlobal Contracts"
     local: "&aSettlement Supply Tasks"
     active: "&eYour Active Contracts"
-    nearby: "&3Nearby Boards"
   labels:
     accept: "&aAccept Contract"
     submit: "&aSubmit Contract"
@@ -71,7 +71,7 @@ gui:
   lore:
     scope: "&7Scope: &f%scope%"
     difficulty: "&7Type: &f%difficulty%"
-    objective: "&7Request: &f%objective%"
+    objective: "&7Objective: &f%objective%"
     reward-money: "&7Money: &a%money%"
     reward-reputation: "&7Reputation: &b%reputation%"
     reward-item: "&7Item: &f%amount%x %item%"
@@ -84,11 +84,12 @@ gui:
     click-claim: "&eClick to claim"
     already-accepted: "&7You are already working on this contract."
     already-finished: "&7You already finished this offer once."
-    no-active-contracts: "&7You have no accepted hybrid contracts."
+    no-active-contracts: "&7You have no accepted global contracts."
 
 signs:
   labels:
     deliver: "Deliver"
+    build: "Build"
   idle:
     - "No Task"
     - ""

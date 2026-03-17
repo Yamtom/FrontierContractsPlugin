@@ -4,8 +4,8 @@ database:
 offers:
   local-slots: 5
   local-lifetime-minutes: 120
-  regional-slots: 2
-  regional-lifetime-minutes: 180
+  regional-slots: 3
+  regional-lifetime-minutes: 240
   global-slots: 4
   global-lifetime-minutes: 240
 

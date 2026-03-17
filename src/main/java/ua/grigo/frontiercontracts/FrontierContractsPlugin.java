@@ -13,6 +13,7 @@ import ua.grigo.frontiercontracts.command.ContractsCommand;
 import ua.grigo.frontiercontracts.config.PluginSettings;
 import ua.grigo.frontiercontracts.contract.ContractService;
 import ua.grigo.frontiercontracts.listener.BoardProtectionListener;
+import ua.grigo.frontiercontracts.listener.ConstructionWorldListener;
 import ua.grigo.frontiercontracts.gui.MenuService;
 import ua.grigo.frontiercontracts.hook.FrontierPlaceholderExpansion;
 import ua.grigo.frontiercontracts.hook.VaultHook;
@@ -131,6 +132,7 @@ public final class FrontierContractsPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new BlockInteractListener(boardService, contractService, menuService, messageService), this);
         Bukkit.getPluginManager().registerEvents(new BoardProtectionListener(boardService, messageService), this);
         Bukkit.getPluginManager().registerEvents(new ContractProgressListener(contractService), this);
+        Bukkit.getPluginManager().registerEvents(new ConstructionWorldListener(this, contractService), this);
     }
 
     private void registerHooks() {

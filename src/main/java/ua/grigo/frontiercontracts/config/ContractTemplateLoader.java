@@ -1,27 +1,40 @@
 package ua.grigo.frontiercontracts.config;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.logging.Logger;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
-import ua.grigo.frontiercontracts.model.BonusConfig;
+import ua.grigo.frontiercontracts.model.ConstructionMetadata;
+import ua.grigo.frontiercontracts.model.ConstructionRules;
+import ua.grigo.frontiercontracts.model.ContractCatalog;
+import ua.grigo.frontiercontracts.model.ContractRank;
+import ua.grigo.frontiercontracts.model.ContractRequirement;
 import ua.grigo.frontiercontracts.model.ContractScope;
 import ua.grigo.frontiercontracts.model.ContractTemplate;
 import ua.grigo.frontiercontracts.model.ContractType;
+import ua.grigo.frontiercontracts.model.RoadSettings;
 import ua.grigo.frontiercontracts.model.RewardBundle;
 import ua.grigo.frontiercontracts.model.RewardItem;
+import ua.grigo.frontiercontracts.util.ContractDataCodec;
 
 public final class ContractTemplateLoader {
+    private static final Logger LOGGER = Logger.getLogger(ContractTemplateLoader.class.getName());
+
     private ContractTemplateLoader() {}
 
-    public static List<ContractTemplate> load(FileConfiguration contractsConfig, PluginSettings settings) {
+    public static ContractCatalog load(FileConfiguration contractsConfig, PluginSettings settings) {
+        Map<ContractRank, String> rankDescriptions = parseRankScale(contractsConfig.getConfigurationSection("rank-scale"));
+        RoadSettings roadSettings = parseRoadSettings(contractsConfig.getConfigurationSection("infrastructure-settings.roads"));
+        ConstructionRules constructionRules = parseConstructionRules(contractsConfig.getConfigurationSection("construction-rules"));
         List<ContractTemplate> templates = new ArrayList<>();
         ConfigurationSection root = contractsConfig.getConfigurationSection("templates");
         if (root == null) {
-            return templates;
+            return new ContractCatalog(rankDescriptions, roadSettings, constructionRules, templates);
         }
 
         for (String key : root.getKeys(false)) {
@@ -40,16 +53,23 @@ public final class ContractTemplateLoader {
                 continue;
             }
 
-            Material material = parseMaterial(
-                firstNonBlank(sec.getString("material"), sec.getString("objective.material")),
-                Material.CHEST
-            );
-            Material icon = parseMaterial(sec.getString("icon"), material);
+            List<ContractRequirement> requirements = parseRequirements(sec);
+            if (requirements.isEmpty()) {
+                LOGGER.warning("Skipping template '" + key + "' because it has no valid requirements.");
+                continue;
+            }
 
-            int amount = parseExactAmount(sec);
+            ConstructionMetadata metadata = parseMetadata(sec.getConfigurationSection("metadata"));
+            if (!validateTemplate(key, type, metadata, requirements, roadSettings, constructionRules)) {
+                continue;
+            }
+
+            Material icon = parseMaterial(sec.getString("icon"), requirements.getFirst().material());
             int durationMinutes = parseDurationMinutes(sec, scope, settings);
             boolean partialDeliveryAllowed = sec.getBoolean("partial-delivery", true);
-            boolean publicOffer = sec.getBoolean("public", true);
+            boolean publicOffer = sec.getBoolean("public", type == ContractType.CONSTRUCTION
+                ? constructionRules.publicConstructionProjects()
+                : true);
 
             List<String> description = parseDescription(sec);
             RewardBundle reward = parseRewardBundle(
@@ -67,23 +87,24 @@ public final class ContractTemplateLoader {
                 key,
                 scope,
                 type,
+                ContractRank.fromString(sec.getString("rank", "C")),
                 sec.getString("difficulty", "SUPPLY"),
                 Math.max(1, sec.getInt("weight", 1)),
                 icon,
                 sec.getString("title", key),
                 description,
-                material,
-                amount,
+                requirements,
+                metadata,
                 durationMinutes,
                 partialDeliveryAllowed,
                 publicOffer,
                 reward,
                 bonusReward,
-                new BonusConfig(noDeathMult),
+                new ua.grigo.frontiercontracts.model.BonusConfig(noDeathMult),
                 sec.getStringList("pool-tags")
             ));
         }
-        return templates;
+        return new ContractCatalog(rankDescriptions, roadSettings, constructionRules, templates);
     }
 
     private static ContractType parseType(String raw) {
@@ -102,17 +123,56 @@ public final class ContractTemplateLoader {
         }
     }
 
-    private static int parseExactAmount(ConfigurationSection sec) {
+    private static List<ContractRequirement> parseRequirements(ConfigurationSection sec) {
+        List<ContractRequirement> requirements = new ArrayList<>();
+        if (sec.isList("requirements")) {
+            for (Map<?, ?> rawEntry : sec.getMapList("requirements")) {
+                Material material = parseMaterial(String.valueOf(rawEntry.get("material")), Material.AIR);
+                int amount = parseInt(rawEntry.get("amount"));
+                if (material != Material.AIR && amount > 0) {
+                    requirements.add(new ContractRequirement(material, amount));
+                }
+            }
+        }
+
+        if (!requirements.isEmpty()) {
+            return requirements;
+        }
+
+        Material legacyMaterial = parseMaterial(
+            firstNonBlank(sec.getString("material"), sec.getString("objective.material")),
+            Material.AIR
+        );
+        int legacyAmount = parseLegacyAmount(sec);
+        if (legacyMaterial != Material.AIR && legacyAmount > 0) {
+            requirements.add(new ContractRequirement(legacyMaterial, legacyAmount));
+        }
+        return requirements;
+    }
+
+    private static int parseLegacyAmount(ConfigurationSection sec) {
         if (sec.contains("amount")) {
             return Math.max(1, sec.getInt("amount", 1));
         }
         if (sec.contains("objective.amount")) {
             return Math.max(1, sec.getInt("objective.amount", 1));
         }
-
         int min = Math.max(1, sec.getInt("objective.amount-min", 1));
         int max = Math.max(min, sec.getInt("objective.amount-max", min));
         return max;
+    }
+
+    private static ConstructionMetadata parseMetadata(ConfigurationSection sec) {
+        if (sec == null) {
+            return ConstructionMetadata.empty();
+        }
+        return new ConstructionMetadata(
+            parseMaterial(sec.getString("surface"), null),
+            sec.contains("road-tiles") ? Math.max(1, sec.getInt("road-tiles", 1)) : null,
+            sec.getString("recommended-tool", ""),
+            sec.getString("building", ""),
+            sec.contains("floors") ? Math.max(1, sec.getInt("floors", 1)) : null
+        );
     }
 
     private static int parseDurationMinutes(ConfigurationSection sec, ContractScope scope, PluginSettings settings) {
@@ -223,15 +283,7 @@ public final class ContractTemplateLoader {
     }
 
     private static Material parseMaterial(String raw, Material fallback) {
-        if (raw == null || raw.isBlank()) {
-            return fallback;
-        }
-        try {
-            Material material = Material.valueOf(raw.toUpperCase(Locale.ROOT));
-            return material.isItem() ? material : fallback;
-        } catch (IllegalArgumentException exception) {
-            return fallback;
-        }
+        return ContractDataCodec.parseMaterial(raw, fallback);
     }
 
     private static int parseInt(Object raw) {
@@ -243,5 +295,83 @@ public final class ContractTemplateLoader {
         } catch (NumberFormatException exception) {
             return 0;
         }
+    }
+
+    private static Map<ContractRank, String> parseRankScale(ConfigurationSection section) {
+        EnumMap<ContractRank, String> result = new EnumMap<>(ContractRank.class);
+        for (ContractRank rank : ContractRank.values()) {
+            result.put(rank, section == null ? rank.name() : section.getString(rank.name(), rank.name()));
+        }
+        return result;
+    }
+
+    private static RoadSettings parseRoadSettings(ConfigurationSection sec) {
+        if (sec == null) {
+            return RoadSettings.defaults();
+        }
+        java.util.Map<String, Integer> shovelCoverage = new java.util.LinkedHashMap<>();
+        ConfigurationSection coverageSec = sec.getConfigurationSection("shovel-coverage");
+        if (coverageSec != null) {
+            for (String key : coverageSec.getKeys(false)) {
+                if (key != null && !key.isBlank()) {
+                    shovelCoverage.put(key.toUpperCase(Locale.ROOT), Math.max(0, coverageSec.getInt(key, 0)));
+                }
+            }
+        }
+        return new RoadSettings(Math.max(1, sec.getInt("dirt-per-tile", 1)), shovelCoverage);
+    }
+
+    private static ConstructionRules parseConstructionRules(ConfigurationSection sec) {
+        if (sec == null) {
+            return ConstructionRules.defaults();
+        }
+        return new ConstructionRules(
+            sec.getBoolean("allow-multi-material-turn-in", true),
+            sec.getBoolean("complete-only-when-all-requirements-met", true),
+            sec.getBoolean("public-construction-projects", true),
+            sec.getString("sign-progress-format", "{done}/{total} req"),
+            Math.max(1, sec.getInt("wheat-per-floor", 3))
+        );
+    }
+
+    private static boolean validateTemplate(
+        String key,
+        ContractType type,
+        ConstructionMetadata metadata,
+        List<ContractRequirement> requirements,
+        RoadSettings roadSettings,
+        ConstructionRules constructionRules
+    ) {
+        if (type != ContractType.CONSTRUCTION) {
+            return true;
+        }
+        if (metadata.isRoadProject()) {
+            int expectedDirt = metadata.roadTiles() * roadSettings.dirtPerTile();
+            int actualDirt = requirementAmount(requirements, Material.DIRT);
+            if (actualDirt != expectedDirt) {
+                LOGGER.warning("Skipping road template '" + key + "' because DIRT requirement " + actualDirt
+                    + " does not match road-tiles*dirt-per-tile (" + expectedDirt + ").");
+                return false;
+            }
+        }
+        if (metadata.isBuildingProject()) {
+            int expectedWheat = metadata.floorCount() * constructionRules.wheatPerFloor();
+            int actualWheat = requirementAmount(requirements, Material.WHEAT);
+            if (expectedWheat > 0 && actualWheat != expectedWheat) {
+                LOGGER.warning("Skipping building template '" + key + "' because WHEAT requirement " + actualWheat
+                    + " does not match floors*wheat-per-floor (" + expectedWheat + ").");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static int requirementAmount(List<ContractRequirement> requirements, Material material) {
+        for (ContractRequirement requirement : requirements) {
+            if (requirement.material() == material) {
+                return requirement.amount();
+            }
+        }
+        return 0;
     }
 }

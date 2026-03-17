@@ -12,6 +12,7 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -19,13 +20,19 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import ua.grigo.frontiercontracts.FrontierContractsPlugin;
-import ua.grigo.frontiercontracts.board.BoardSignService;
 import ua.grigo.frontiercontracts.board.BoardService;
+import ua.grigo.frontiercontracts.board.BoardSignService;
 import ua.grigo.frontiercontracts.config.ContractTemplateLoader;
 import ua.grigo.frontiercontracts.config.PluginSettings;
 import ua.grigo.frontiercontracts.hook.VaultHook;
 import ua.grigo.frontiercontracts.model.Board;
+import ua.grigo.frontiercontracts.model.ConstructionMetadata;
+import ua.grigo.frontiercontracts.model.ConstructionRules;
+import ua.grigo.frontiercontracts.model.ConstructionSite;
+import ua.grigo.frontiercontracts.model.ContractCatalog;
 import ua.grigo.frontiercontracts.model.ContractOffer;
+import ua.grigo.frontiercontracts.model.ContractRank;
+import ua.grigo.frontiercontracts.model.ContractRequirement;
 import ua.grigo.frontiercontracts.model.ContractScope;
 import ua.grigo.frontiercontracts.model.ContractTemplate;
 import ua.grigo.frontiercontracts.model.ContractType;
@@ -41,16 +48,16 @@ import ua.grigo.frontiercontracts.util.MessageService;
 import ua.grigo.frontiercontracts.util.TextUtil;
 
 public final class ContractService {
-
     private final FrontierContractsPlugin plugin;
     private final StorageService storage;
     private final VaultHook vaultHook;
     private final MessageService messages;
     private final BoardService boardService;
     private final BoardSignService boardSignService;
+    private final ConstructionSitePlanner sitePlanner;
 
     private PluginSettings settings;
-    private List<ContractTemplate> templates = List.of();
+    private ContractCatalog catalog = new ContractCatalog(Map.of(), null, null, List.of());
 
     private final Map<String, Map<String, ContractOffer>> offersByBoard = new HashMap<>();
     private final Map<String, ContractOffer> globalOffers = new LinkedHashMap<>();
@@ -75,12 +82,13 @@ public final class ContractService {
         this.messages = messages;
         this.boardService = boardService;
         this.boardSignService = boardSignService;
+        this.sitePlanner = new ConstructionSitePlanner(plugin.getServer());
         this.settings = settings;
     }
 
     public void reload(FileConfiguration contractsConfig, PluginSettings settings) throws SQLException {
         this.settings = settings;
-        this.templates = ContractTemplateLoader.load(contractsConfig, settings);
+        this.catalog = ContractTemplateLoader.load(contractsConfig, settings);
         offersByBoard.clear();
         globalOffers.clear();
         openContracts.clear();
@@ -186,12 +194,10 @@ public final class ContractService {
         Map<String, ContractOffer> pool = offersByBoard.get(board.id());
         if (pool != null) {
             pool.values().forEach(offer -> {
-                if (offer.scope() == ContractScope.LOCAL) {
-                    if (!offer.active() || offer.deliveredAmount() <= 0) {
-                        offer.setActive(false);
-                        persistOffer(offer);
-                    }
-                } else if (!hasAcceptedActiveContract(offer.id())) {
+                boolean keep = offer.scope() != ContractScope.GLOBAL
+                    ? offer.totalDeliveredAmount() > 0
+                    : hasAcceptedActiveContract(offer.id());
+                if (!keep) {
                     offer.setActive(false);
                     persistOffer(offer);
                 }
@@ -274,34 +280,45 @@ public final class ContractService {
         List<ContractTemplate> preferred = pool.stream()
             .filter(template -> !activeKeys.contains(template.key()))
             .toList();
-        List<ContractTemplate> selection = preferred.isEmpty() ? pool : preferred;
-        ContractTemplate template = weightedPick(selection, board);
-        if (template == null) {
-            return null;
+        List<ContractTemplate> selection = new ArrayList<>(preferred.isEmpty() ? pool : preferred);
+        while (!selection.isEmpty()) {
+            ContractTemplate template = weightedPick(selection, board);
+            if (template == null) {
+                return null;
+            }
+            ConstructionSite site = template.type() == ContractType.CONSTRUCTION
+                ? sitePlanner.plan(board, template)
+                : null;
+            if (template.type() == ContractType.CONSTRUCTION && site == null) {
+                selection.remove(template);
+                continue;
+            }
+            return template.createOffer(
+                board.id(),
+                board.difficultyModifier(),
+                board.rewardModifier(),
+                board.reputationModifier(),
+                now,
+                settings,
+                site
+            );
         }
-        return template.createOffer(
-            board.id(),
-            board.difficultyModifier(),
-            board.rewardModifier(),
-            board.reputationModifier(),
-            now,
-            settings
-        );
+        return null;
     }
 
     private ContractOffer generateGlobalOffer(long now) {
-        List<ContractTemplate> globalTemplates = templates.stream()
+        List<ContractTemplate> globalTemplates = catalog.templates().stream()
             .filter(template -> template.scope() == ContractScope.GLOBAL)
             .toList();
         ContractTemplate template = weightedPickFlat(globalTemplates);
         if (template == null) {
             return null;
         }
-        return template.createOffer(null, 1.0D, 1.0D, 1.0D, now, settings);
+        return template.createOffer(null, 1.0D, 1.0D, 1.0D, now, settings, null);
     }
 
     private List<ContractTemplate> eligibleTemplates(Board board, ContractScope scope) {
-        return templates.stream()
+        return catalog.templates().stream()
             .filter(template -> template.scope() == scope)
             .filter(template -> template.isAvailableToBoard(board.contractPools()))
             .toList();
@@ -356,6 +373,17 @@ public final class ContractService {
             .toList();
     }
 
+    public List<ContractOffer> getRegionalOffersForDirectory() {
+        List<ContractOffer> offers = new ArrayList<>();
+        for (Map<String, ContractOffer> pool : offersByBoard.values()) {
+            pool.values().stream()
+                .filter(offer -> offer.active() && offer.scope() == ContractScope.REGIONAL)
+                .forEach(offers::add);
+        }
+        offers.sort(Comparator.comparingLong(ContractOffer::createdAtEpochSeconds));
+        return offers;
+    }
+
     public List<ContractOffer> getGlobalOffers() {
         return globalOffers.values().stream()
             .filter(ContractOffer::active)
@@ -402,7 +430,7 @@ public final class ContractService {
         }
 
         ContractOffer offer = findOffer(offerId);
-        if (offer == null || !offer.active() || offer.isBoardLocal()) {
+        if (offer == null || !offer.active() || offer.scope() != ContractScope.GLOBAL) {
             return ActionResult.failure("errors.unavailable-offer");
         }
         if (hasAcceptedOffer(player.getUniqueId(), offerId)) {
@@ -475,7 +503,12 @@ public final class ContractService {
             return ActionResult.failure("errors.no-matching-resource");
         }
 
-        int remaining = offer.remainingAmount();
+        ContractRequirement requirement = offer.findRequirement(heldItem.getType());
+        if (requirement == null) {
+            return ActionResult.failure("errors.no-matching-resource");
+        }
+
+        int remaining = requirement.remainingAmount();
         int available = heldItem.getAmount();
         if (!offer.partialDeliveryAllowed() && available < remaining) {
             return ActionResult.failure("errors.full-delivery-required");
@@ -487,23 +520,54 @@ public final class ContractService {
         }
 
         ItemUtil.removeFromHand(player.getInventory(), hand, delivered);
-        offer.setDeliveredAmount(offer.deliveredAmount() + delivered);
+        requirement.addDeliveredAmount(delivered);
         persistOffer(offer);
         syncBoardDisplay(board);
 
         messages.send(player, "contracts.progress-delivery", Map.of(
             "%title%", offer.title(),
-            "%progress%", Integer.toString(offer.deliveredAmount()),
-            "%goal%", Integer.toString(offer.requiredAmount()),
-            "%resource%", TextUtil.prettyToken(offer.requiredMaterial().name())
+            "%progress%", Integer.toString(requirement.deliveredAmount()),
+            "%goal%", Integer.toString(requirement.amount()),
+            "%resource%", TextUtil.prettyToken(requirement.material().name())
         ));
 
-        if (offer.isComplete()) {
+        if (canFinalizeSharedOffer(offer) && meetsConstructionValidation(offer)) {
             completeBoardOffer(player, board, offer);
-            return ActionResult.success("", Map.of());
         }
 
         return ActionResult.success("", Map.of());
+    }
+
+    public int checkConstructionCompletions(Player player, Block changedBlock) {
+        if (changedBlock == null || changedBlock.getWorld() == null) {
+            return 0;
+        }
+        int completed = 0;
+        String worldName = changedBlock.getWorld().getName();
+        int x = changedBlock.getX();
+        int y = changedBlock.getY();
+        int z = changedBlock.getZ();
+        for (Map<String, ContractOffer> pool : offersByBoard.values()) {
+            for (ContractOffer offer : pool.values()) {
+                if (!offer.active() || !offer.requiresWorldValidation() || !offer.isComplete()) {
+                    continue;
+                }
+                ConstructionSite site = offer.site();
+                if (site == null || !site.contains(worldName, x, y, z)) {
+                    continue;
+                }
+                if (!validateRoadSite(offer)) {
+                    continue;
+                }
+                Board board = offer.boardId() == null ? null : boardService.getBoard(offer.boardId()).orElse(null);
+                if (board == null) {
+                    continue;
+                }
+                completeBoardOffer(player, board, offer);
+                completed++;
+            }
+        }
+        return completed;
     }
 
     public ActionResult abandon(Player player, String offerId) {
@@ -576,11 +640,22 @@ public final class ContractService {
     }
 
     public String objectiveLabel(ContractOffer offer) {
+        if (offer.type() == ContractType.CONSTRUCTION) {
+            return offer.completedRequirementCount() + "/" + offer.totalRequirementCount() + " requirements";
+        }
         return offer.requiredAmount() + "x " + TextUtil.prettyToken(offer.requiredMaterial().name());
     }
 
     public int boardProgress(ContractOffer offer) {
-        return offer.deliveredAmount();
+        return offer.totalDeliveredAmount();
+    }
+
+    public String rankDescription(ContractRank rank) {
+        return catalog.rankDescription(rank);
+    }
+
+    public ConstructionRules constructionRules() {
+        return catalog.constructionRules();
     }
 
     public void regenerateOffers() {
@@ -589,24 +664,32 @@ public final class ContractService {
         } catch (SQLException exception) {
             plugin.getLogger().warning("Could not deactivate pending offers: " + exception.getMessage());
         }
-        offersByBoard.values().forEach(pool -> pool.values().removeIf(offer ->
-            offer.scope() != ContractScope.LOCAL && !hasAcceptedActiveContract(offer.id())));
+        offersByBoard.values().forEach(pool -> pool.values().removeIf(offer -> !offer.active()));
         globalOffers.values().removeIf(offer -> !hasAcceptedActiveContract(offer.id()));
         ensureAllBoardPools();
     }
 
     public void syncBoardDisplay(Board board) {
-        boardSignService.syncBoard(board, getLocalOffers(board.id()));
+        boardSignService.syncBoard(board, getLocalOffers(board.id()), catalog.constructionRules().signProgressFormat());
+    }
+
+    public int inventoryProgress(Player player, ContractOffer offer) {
+        int total = 0;
+        for (ContractRequirement requirement : offer.requirements()) {
+            total += Math.min(requirement.amount(), ItemUtil.countMaterial(player.getInventory(), requirement.material()));
+        }
+        return total;
     }
 
     private boolean submitInternal(Player player, PlayerContract contract, ContractOffer offer) {
-        if (!canProgress(player) || offer.type() != ContractType.DELIVERY) {
+        if (!canProgress(player) || offer.scope() != ContractScope.GLOBAL) {
             return false;
         }
-        if (!ItemUtil.removeMaterial(player.getInventory(), offer.requiredMaterial(), offer.requiredAmount())) {
+        if (!inventoryHasAllRequirements(player.getInventory(), offer.requirements())) {
             return false;
         }
-        contract.setProgress(offer.requiredAmount());
+        removeRequirements(player.getInventory(), offer.requirements());
+        contract.setProgress(offer.totalRequiredAmount());
         rewardAcceptedContract(player, contract, offer);
         return true;
     }
@@ -718,13 +801,13 @@ public final class ContractService {
     private ContractOffer selectBoardDeliveryOffer(String boardId, UUID playerUuid, Material material) {
         return offersByBoard.getOrDefault(boardId, Map.of()).values().stream()
             .filter(ContractOffer::active)
-            .filter(ContractOffer::isBoardLocal)
+            .filter(ContractOffer::isBoardBackedShared)
             .filter(offer -> offer.acceptsMaterial(material))
             .filter(offer -> offer.publicOffer() || offer.isPersonalFor(playerUuid))
             .sorted(Comparator
                 .comparing((ContractOffer offer) -> !offer.isPersonalFor(playerUuid))
                 .thenComparingLong(ContractOffer::createdAtEpochSeconds)
-                .thenComparingInt(ContractOffer::remainingAmount))
+                .thenComparing(Comparator.comparingDouble(ContractOffer::aggregateCompletionRatio).reversed()))
             .findFirst()
             .orElse(null);
     }
@@ -799,9 +882,53 @@ public final class ContractService {
     }
 
     private String failureMessageFor(ContractOffer offer, Player player) {
-        return ItemUtil.countMaterial(player.getInventory(), offer.requiredMaterial()) < offer.requiredAmount()
-            ? "errors.not-enough-items"
-            : "errors.not-ready";
+        return inventoryHasAllRequirements(player.getInventory(), offer.requirements())
+            ? "errors.not-ready"
+            : "errors.not-enough-items";
+    }
+
+    private boolean inventoryHasAllRequirements(PlayerInventory inventory, List<ContractRequirement> requirements) {
+        for (ContractRequirement requirement : requirements) {
+            if (ItemUtil.countMaterial(inventory, requirement.material()) < requirement.amount()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void removeRequirements(PlayerInventory inventory, List<ContractRequirement> requirements) {
+        for (ContractRequirement requirement : requirements) {
+            ItemUtil.removeMaterial(inventory, requirement.material(), requirement.amount());
+        }
+    }
+
+    private boolean canFinalizeSharedOffer(ContractOffer offer) {
+        return !catalog.constructionRules().completeOnlyWhenAllRequirementsMet() || offer.isComplete();
+    }
+
+    private boolean meetsConstructionValidation(ContractOffer offer) {
+        if (!offer.requiresWorldValidation()) {
+            return true;
+        }
+        return validateRoadSite(offer);
+    }
+
+    private boolean validateRoadSite(ContractOffer offer) {
+        ConstructionMetadata metadata = offer.metadata();
+        ConstructionSite site = offer.site();
+        if (!metadata.isRoadProject() || site == null || metadata.surface() == null) {
+            return !offer.requiresWorldValidation();
+        }
+        org.bukkit.World world = plugin.getServer().getWorld(site.worldName());
+        if (world == null) {
+            return false;
+        }
+        for (ua.grigo.frontiercontracts.model.BlockPosition tile : site.roadTiles()) {
+            if (world.getBlockAt(tile.x(), tile.y(), tile.z()).getType() != metadata.surface()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private long now() {

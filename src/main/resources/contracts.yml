@@ -1,9 +1,54 @@
+rank-scale:
+  F: "дрібна побутова потреба"
+  E: "дуже легка поставка"
+  D: "легка виробнича або ремонтна задача"
+  C: "стабільна локальна потреба"
+  B: "важлива місцева інфраструктура"
+  A: "велике стратегічне замовлення"
+  S: "винятковий або елітний контракт"
+
+existing-template-ranks:
+  timber_request: C
+  stone_supply: B
+  iron_stock: B
+  coal_delivery: C
+  bread_for_villagers: F
+  hay_reserve: F
+  wool_bundle: E
+  leather_stockpile: D
+  arrow_supply: D
+  carrot_delivery: F
+  potato_delivery: F
+  copper_shipment: C
+  lantern_materials: E
+  rail_stock: C
+
+infrastructure-settings:
+  roads:
+    dirt-per-tile: 1
+    shovel-coverage:
+      WOODEN_SHOVEL: 1
+      STONE_SHOVEL: 2
+      COPPER_SHOVEL: 3
+      IRON_SHOVEL: 4
+      GOLDEN_SHOVEL: 6
+      DIAMOND_SHOVEL: 8
+      NETHERITE_SHOVEL: 10
+
+construction-rules:
+  allow-multi-material-turn-in: true
+  complete-only-when-all-requirements-met: true
+  public-construction-projects: true
+  sign-progress-format: "{done}/{total} req"
+  wheat-per-floor: 3
+
 templates:
   timber_request:
     enabled: true
     scope: LOCAL
     type: DELIVERY
     difficulty: SUPPLY
+    rank: C
     weight: 8
     icon: OAK_LOG
     title: "&6Timber Request"
@@ -21,6 +66,7 @@ templates:
     scope: LOCAL
     type: DELIVERY
     difficulty: SUPPLY
+    rank: B
     weight: 7
     icon: COBBLESTONE
     title: "&6Stone Supply"
@@ -39,6 +85,7 @@ templates:
     scope: LOCAL
     type: DELIVERY
     difficulty: SUPPLY
+    rank: B
     weight: 6
     icon: IRON_INGOT
     title: "&6Iron Stock"
@@ -56,6 +103,7 @@ templates:
     scope: LOCAL
     type: DELIVERY
     difficulty: SUPPLY
+    rank: C
     weight: 6
     icon: COAL
     title: "&6Coal Delivery"
@@ -73,6 +121,7 @@ templates:
     scope: LOCAL
     type: DELIVERY
     difficulty: SUPPLY
+    rank: F
     weight: 5
     icon: BREAD
     title: "&6Bread for Villagers"
@@ -91,6 +140,7 @@ templates:
     scope: LOCAL
     type: DELIVERY
     difficulty: SUPPLY
+    rank: F
     weight: 5
     icon: HAY_BLOCK
     title: "&6Hay Reserve"
@@ -108,6 +158,7 @@ templates:
     scope: LOCAL
     type: DELIVERY
     difficulty: SUPPLY
+    rank: E
     weight: 5
     icon: WHITE_WOOL
     title: "&6Wool Bundle"
@@ -125,6 +176,7 @@ templates:
     scope: LOCAL
     type: DELIVERY
     difficulty: SUPPLY
+    rank: D
     weight: 4
     icon: LEATHER
     title: "&6Leather Stockpile"
@@ -143,6 +195,7 @@ templates:
     scope: LOCAL
     type: DELIVERY
     difficulty: SUPPLY
+    rank: D
     weight: 4
     icon: ARROW
     title: "&6Arrow Supply"
@@ -160,10 +213,11 @@ templates:
           amount: 1
 
   carrot_delivery:
-    enabled: false
+    enabled: true
     scope: LOCAL
     type: DELIVERY
     difficulty: SUPPLY
+    rank: F
     weight: 3
     icon: CARROT
     title: "&6Carrot Delivery"
@@ -177,10 +231,11 @@ templates:
       money: 80
 
   potato_delivery:
-    enabled: false
+    enabled: true
     scope: LOCAL
     type: DELIVERY
     difficulty: SUPPLY
+    rank: F
     weight: 3
     icon: POTATO
     title: "&6Potato Delivery"
@@ -194,10 +249,11 @@ templates:
       money: 80
 
   copper_shipment:
-    enabled: false
+    enabled: true
     scope: LOCAL
     type: DELIVERY
     difficulty: SUPPLY
+    rank: C
     weight: 3
     icon: COPPER_INGOT
     title: "&6Copper Shipment"
@@ -211,10 +267,11 @@ templates:
       money: 150
 
   lantern_materials:
-    enabled: false
+    enabled: true
     scope: LOCAL
     type: DELIVERY
     difficulty: SUPPLY
+    rank: E
     weight: 3
     icon: TORCH
     title: "&6Lantern Materials"
@@ -228,10 +285,11 @@ templates:
       money: 75
 
   rail_stock:
-    enabled: false
+    enabled: true
     scope: LOCAL
     type: DELIVERY
     difficulty: SUPPLY
+    rank: C
     weight: 2
     icon: RAIL
     title: "&6Rail Stock"
@@ -243,3 +301,631 @@ templates:
     public: true
     reward:
       money: 145
+
+  spruce_log_consignment:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    rank: C
+    weight: 7
+    icon: SPRUCE_LOG
+    title: "&6Spruce Log Consignment"
+    flavor: "Builders requested straight spruce logs"
+    material: SPRUCE_LOG
+    amount: 64
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 125
+      reputation: 2
+
+  oak_plank_bundle:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    rank: C
+    weight: 7
+    icon: OAK_PLANKS
+    title: "&6Oak Plank Bundle"
+    flavor: "Carpenters need processed planks, not raw logs"
+    material: OAK_PLANKS
+    amount: 96
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 145
+      reputation: 2
+
+  sand_cart:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    rank: E
+    weight: 6
+    icon: SAND
+    title: "&6Sand Cart"
+    flavor: "Builders need fresh sand for mortar and glass work"
+    material: SAND
+    amount: 96
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 95
+
+  glass_pane_order:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    rank: D
+    weight: 5
+    icon: GLASS_PANE
+    title: "&6Glass Pane Order"
+    flavor: "Windows are being fitted across the settlement"
+    material: GLASS_PANE
+    amount: 48
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 130
+      reputation: 2
+
+  brick_batch:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    rank: C
+    weight: 5
+    icon: BRICKS
+    title: "&6Brick Batch"
+    flavor: "The masons are short on fired bricks"
+    material: BRICKS
+    amount: 64
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 155
+      reputation: 3
+
+  clay_ball_supply:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    rank: E
+    weight: 4
+    icon: CLAY_BALL
+    title: "&6Clay Ball Supply"
+    flavor: "Workshop kilns need raw clay stock"
+    material: CLAY_BALL
+    amount: 96
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 100
+
+  quartz_delivery:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    rank: A
+    weight: 2
+    icon: QUARTZ
+    title: "&6Quartz Delivery"
+    flavor: "High-status construction requires refined quartz"
+    material: QUARTZ
+    amount: 48
+    expiration-minutes: 240
+    partial-delivery: true
+    public: true
+    reward:
+      money: 240
+      reputation: 5
+
+  redstone_parts:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    rank: B
+    weight: 3
+    icon: REDSTONE
+    title: "&6Redstone Parts"
+    flavor: "Mechanics need redstone for control circuits"
+    material: REDSTONE
+    amount: 64
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 180
+      reputation: 4
+
+  lapis_order:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    rank: B
+    weight: 3
+    icon: LAPIS_LAZULI
+    title: "&6Lapis Order"
+    flavor: "Scribes and enchanters requested lapis reserves"
+    material: LAPIS_LAZULI
+    amount: 64
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 175
+      reputation: 4
+
+  paper_stack:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    rank: F
+    weight: 4
+    icon: PAPER
+    title: "&6Paper Stack"
+    flavor: "Clerks need paper for records and notices"
+    material: PAPER
+    amount: 96
+    expiration-minutes: 120
+    partial-delivery: true
+    public: true
+    reward:
+      money: 75
+
+  book_shipment:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    rank: C
+    weight: 3
+    icon: BOOK
+    title: "&6Book Shipment"
+    flavor: "The archive is requesting bound books"
+    material: BOOK
+    amount: 24
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 140
+      reputation: 2
+
+  string_bundle:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    rank: D
+    weight: 4
+    icon: STRING
+    title: "&6String Bundle"
+    flavor: "Fletchers and trappers need more string"
+    material: STRING
+    amount: 64
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 120
+      reputation: 2
+
+  cooked_beef_ration:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    rank: C
+    weight: 4
+    icon: COOKED_BEEF
+    title: "&6Cooked Beef Ration"
+    flavor: "Workers require preserved meat for long shifts"
+    material: COOKED_BEEF
+    amount: 32
+    expiration-minutes: 120
+    partial-delivery: true
+    public: true
+    reward:
+      money: 115
+      reputation: 2
+
+  road_dirt_patch_10:
+    enabled: true
+    scope: LOCAL
+    type: CONSTRUCTION
+    difficulty: INFRASTRUCTURE
+    rank: F
+    weight: 5
+    icon: DIRT
+    title: "&6Road Patch: 10 Tiles"
+    flavor: "Patch a short dirt lane near the village center"
+    expiration-minutes: 120
+    partial-delivery: true
+    public: true
+    metadata:
+      surface: DIRT_PATH
+      road-tiles: 10
+      recommended-tool: WOODEN_SHOVEL
+    requirements:
+      - material: DIRT
+        amount: 10
+    reward:
+      money: 70
+      reputation: 1
+
+  road_dirt_segment_20:
+    enabled: true
+    scope: LOCAL
+    type: CONSTRUCTION
+    difficulty: INFRASTRUCTURE
+    rank: E
+    weight: 5
+    icon: DIRT
+    title: "&6Road Segment: 20 Tiles"
+    flavor: "Expand the dirt track toward nearby fields"
+    expiration-minutes: 150
+    partial-delivery: true
+    public: true
+    metadata:
+      surface: DIRT_PATH
+      road-tiles: 20
+      recommended-tool: STONE_SHOVEL
+    requirements:
+      - material: DIRT
+        amount: 20
+    reward:
+      money: 110
+      reputation: 2
+
+  road_gravel_segment_30:
+    enabled: true
+    scope: LOCAL
+    type: CONSTRUCTION
+    difficulty: INFRASTRUCTURE
+    rank: D
+    weight: 4
+    icon: GRAVEL
+    title: "&6Gravel Road: 30 Tiles"
+    flavor: "Stabilize the trade path with packed gravel"
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    metadata:
+      surface: GRAVEL
+      road-tiles: 30
+      recommended-tool: COPPER_SHOVEL
+    requirements:
+      - material: DIRT
+        amount: 30
+      - material: GRAVEL
+        amount: 30
+    reward:
+      money: 155
+      reputation: 3
+
+  road_cobble_segment_40:
+    enabled: true
+    scope: LOCAL
+    type: CONSTRUCTION
+    difficulty: INFRASTRUCTURE
+    rank: C
+    weight: 4
+    icon: COBBLESTONE
+    title: "&6Cobble Road: 40 Tiles"
+    flavor: "Lay a durable cobble route through the settlement"
+    expiration-minutes: 210
+    partial-delivery: true
+    public: true
+    metadata:
+      surface: COBBLESTONE
+      road-tiles: 40
+      recommended-tool: IRON_SHOVEL
+    requirements:
+      - material: DIRT
+        amount: 40
+      - material: COBBLESTONE
+        amount: 40
+    reward:
+      money: 220
+      reputation: 4
+
+  road_stone_segment_60:
+    enabled: true
+    scope: LOCAL
+    type: CONSTRUCTION
+    difficulty: INFRASTRUCTURE
+    rank: B
+    weight: 3
+    icon: STONE_BRICKS
+    title: "&6Stone Road: 60 Tiles"
+    flavor: "Upgrade a major route into proper stonework"
+    expiration-minutes: 240
+    partial-delivery: true
+    public: true
+    metadata:
+      surface: STONE_BRICKS
+      road-tiles: 60
+      recommended-tool: DIAMOND_SHOVEL
+    requirements:
+      - material: DIRT
+        amount: 60
+      - material: STONE_BRICKS
+        amount: 60
+    reward:
+      money: 340
+      reputation: 6
+
+  road_royal_route_100:
+    enabled: true
+    scope: REGIONAL
+    type: CONSTRUCTION
+    difficulty: INFRASTRUCTURE
+    rank: A
+    weight: 2
+    icon: LANTERN
+    title: "&6Royal Route: 100 Tiles"
+    flavor: "Build a lit high-road fit for caravans and officials"
+    expiration-minutes: 360
+    partial-delivery: true
+    public: true
+    metadata:
+      surface: STONE_BRICKS
+      road-tiles: 100
+      recommended-tool: NETHERITE_SHOVEL
+    requirements:
+      - material: DIRT
+        amount: 100
+      - material: STONE_BRICKS
+        amount: 100
+      - material: LANTERN
+        amount: 10
+    reward:
+      money: 650
+      reputation: 10
+
+  market_stall_1f:
+    enabled: true
+    scope: LOCAL
+    type: CONSTRUCTION
+    difficulty: INFRASTRUCTURE
+    rank: D
+    weight: 4
+    icon: WHITE_WOOL
+    title: "&6Market Stall"
+    flavor: "A compact one-floor stall for village trade"
+    expiration-minutes: 240
+    partial-delivery: true
+    public: true
+    metadata:
+      building: MARKET_STALL
+      floors: 1
+    requirements:
+      - material: OAK_LOG
+        amount: 8
+      - material: OAK_PLANKS
+        amount: 32
+      - material: OAK_FENCE
+        amount: 12
+      - material: WHITE_WOOL
+        amount: 16
+      - material: CHEST
+        amount: 1
+      - material: TORCH
+        amount: 4
+      - material: WHEAT
+        amount: 3
+    reward:
+      money: 180
+      reputation: 3
+
+  storage_shed_1f:
+    enabled: true
+    scope: LOCAL
+    type: CONSTRUCTION
+    difficulty: INFRASTRUCTURE
+    rank: C
+    weight: 4
+    icon: BARREL
+    title: "&6Storage Shed"
+    flavor: "A one-floor storage shed for tools and harvest stock"
+    expiration-minutes: 240
+    partial-delivery: true
+    public: true
+    metadata:
+      building: STORAGE_SHED
+      floors: 1
+    requirements:
+      - material: SPRUCE_LOG
+        amount: 12
+      - material: SPRUCE_PLANKS
+        amount: 48
+      - material: COBBLESTONE
+        amount: 32
+      - material: SPRUCE_STAIRS
+        amount: 16
+      - material: SPRUCE_SLAB
+        amount: 12
+      - material: BARREL
+        amount: 4
+      - material: TORCH
+        amount: 4
+      - material: WHEAT
+        amount: 3
+    reward:
+      money: 260
+      reputation: 4
+
+  village_house_1f:
+    enabled: true
+    scope: LOCAL
+    type: CONSTRUCTION
+    difficulty: INFRASTRUCTURE
+    rank: B
+    weight: 3
+    icon: WHITE_BED
+    title: "&6Village House"
+    flavor: "A standard one-floor vanilla-style village home"
+    expiration-minutes: 300
+    partial-delivery: true
+    public: true
+    metadata:
+      building: VILLAGE_HOUSE
+      floors: 1
+    requirements:
+      - material: OAK_LOG
+        amount: 16
+      - material: OAK_PLANKS
+        amount: 64
+      - material: COBBLESTONE
+        amount: 48
+      - material: GLASS_PANE
+        amount: 12
+      - material: OAK_STAIRS
+        amount: 20
+      - material: OAK_DOOR
+        amount: 1
+      - material: WHITE_BED
+        amount: 1
+      - material: TORCH
+        amount: 4
+      - material: WHEAT
+        amount: 3
+    reward:
+      money: 340
+      reputation: 5
+
+  forge_house_1f:
+    enabled: true
+    scope: LOCAL
+    type: CONSTRUCTION
+    difficulty: INFRASTRUCTURE
+    rank: A
+    weight: 2
+    icon: SMITHING_TABLE
+    title: "&6Forge House"
+    flavor: "A heavy one-floor forge with proper workstations"
+    expiration-minutes: 300
+    partial-delivery: true
+    public: true
+    metadata:
+      building: FORGE_HOUSE
+      floors: 1
+    requirements:
+      - material: STONE_BRICKS
+        amount: 48
+      - material: COBBLESTONE
+        amount: 32
+      - material: OAK_LOG
+        amount: 12
+      - material: OAK_PLANKS
+        amount: 32
+      - material: GLASS_PANE
+        amount: 8
+      - material: FURNACE
+        amount: 2
+      - material: SMITHING_TABLE
+        amount: 1
+      - material: CHEST
+        amount: 1
+      - material: TORCH
+        amount: 4
+      - material: WHEAT
+        amount: 3
+    reward:
+      money: 420
+      reputation: 7
+
+  watchtower_2f:
+    enabled: true
+    scope: REGIONAL
+    type: CONSTRUCTION
+    difficulty: INFRASTRUCTURE
+    rank: A
+    weight: 2
+    icon: LADDER
+    title: "&6Watchtower"
+    flavor: "A two-floor watchtower for defense and visibility"
+    expiration-minutes: 360
+    partial-delivery: true
+    public: true
+    metadata:
+      building: WATCHTOWER
+      floors: 2
+    requirements:
+      - material: SPRUCE_LOG
+        amount: 24
+      - material: COBBLESTONE
+        amount: 64
+      - material: SPRUCE_PLANKS
+        amount: 64
+      - material: SPRUCE_STAIRS
+        amount: 24
+      - material: LADDER
+        amount: 24
+      - material: SPRUCE_FENCE
+        amount: 20
+      - material: TORCH
+        amount: 8
+      - material: WHEAT
+        amount: 6
+    reward:
+      money: 560
+      reputation: 9
+
+  warehouse_2f:
+    enabled: true
+    scope: REGIONAL
+    type: CONSTRUCTION
+    difficulty: INFRASTRUCTURE
+    rank: S
+    weight: 1
+    icon: CHEST
+    title: "&6Grand Warehouse"
+    flavor: "A two-floor strategic warehouse for a major settlement"
+    expiration-minutes: 420
+    partial-delivery: true
+    public: true
+    metadata:
+      building: GRAND_WAREHOUSE
+      floors: 2
+    requirements:
+      - material: OAK_LOG
+        amount: 32
+      - material: OAK_PLANKS
+        amount: 128
+      - material: COBBLESTONE
+        amount: 96
+      - material: SPRUCE_STAIRS
+        amount: 32
+      - material: OAK_SLAB
+        amount: 32
+      - material: BARREL
+        amount: 8
+      - material: CHEST
+        amount: 8
+      - material: GLASS_PANE
+        amount: 24
+      - material: TORCH
+        amount: 12
+      - material: WHEAT
+        amount: 6
+    reward:
+      money: 880
+      reputation: 14

@@ -9,6 +9,7 @@ import org.bukkit.Server;
 import org.bukkit.block.Sign;
 import ua.grigo.frontiercontracts.model.Board;
 import ua.grigo.frontiercontracts.model.ContractOffer;
+import ua.grigo.frontiercontracts.model.ContractType;
 import ua.grigo.frontiercontracts.util.MessageService;
 import ua.grigo.frontiercontracts.util.TextUtil;
 
@@ -26,6 +27,10 @@ public final class BoardSignService {
     }
 
     public void syncBoard(Board board, List<ContractOffer> localOffers) {
+        syncBoard(board, localOffers, "{done}/{total} req");
+    }
+
+    public void syncBoard(Board board, List<ContractOffer> localOffers, String constructionProgressFormat) {
         BoardLayout layout = BoardLayout.fromBoard(board, server);
         if (layout == null) {
             return;
@@ -54,19 +59,38 @@ public final class BoardSignService {
         List<String> idleLines = normalizeLines(messages.rawList("signs.idle"));
         for (int index = 0; index < taskSigns.size(); index++) {
             List<String> lines = index < offers.size()
-                ? buildOfferLines(offers.get(index))
+                ? buildOfferLines(offers.get(index), constructionProgressFormat)
                 : idleLines;
             writeSign(taskSigns.get(index), lines);
         }
     }
 
-    private List<String> buildOfferLines(ContractOffer offer) {
+    private List<String> buildOfferLines(ContractOffer offer, String constructionProgressFormat) {
+        return offer.type() == ContractType.CONSTRUCTION
+            ? buildConstructionLines(offer, constructionProgressFormat)
+            : buildDeliveryLines(offer);
+    }
+
+    private List<String> buildDeliveryLines(ContractOffer offer) {
         List<String> lines = new ArrayList<>(SIGN_LINE_COUNT);
         List<String> nameLines = wrapWords(TextUtil.prettyToken(offer.requiredMaterial().name()), 2, SIGN_LINE_LENGTH);
         lines.add(nameLines.isEmpty() ? "" : nameLines.getFirst());
         lines.add(nameLines.size() > 1 ? nameLines.get(1) : "");
         lines.add(trim(offer.deliveredAmount() + "/" + offer.requiredAmount()));
         lines.add(trim(defaultIfMissing(messages.raw("signs.labels.deliver"), "Deliver")));
+        return normalizeLines(lines);
+    }
+
+    private List<String> buildConstructionLines(ContractOffer offer, String progressFormat) {
+        List<String> lines = new ArrayList<>(SIGN_LINE_COUNT);
+        List<String> nameLines = wrapWords(TextUtil.normalizePlain(offer.title()).isBlank() ? "Build" : stripColor(offer.title()), 2, SIGN_LINE_LENGTH);
+        lines.add(nameLines.isEmpty() ? "" : nameLines.getFirst());
+        lines.add(nameLines.size() > 1 ? nameLines.get(1) : "");
+        String progress = progressFormat
+            .replace("{done}", Integer.toString(offer.completedRequirementCount()))
+            .replace("{total}", Integer.toString(offer.totalRequirementCount()));
+        lines.add(trim(progress));
+        lines.add(trim(defaultIfMissing(messages.raw("signs.labels.build"), "Build")));
         return normalizeLines(lines);
     }
 
@@ -154,5 +178,9 @@ public final class BoardSignService {
 
     private String defaultIfMissing(String value, String fallback) {
         return value == null || value.isBlank() || value.startsWith("signs.") ? fallback : value;
+    }
+
+    private String stripColor(String raw) {
+        return org.bukkit.ChatColor.stripColor(TextUtil.colorize(raw));
     }
 }

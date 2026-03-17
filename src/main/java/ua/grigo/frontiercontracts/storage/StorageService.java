@@ -14,7 +14,10 @@ import java.util.Map;
 import java.util.UUID;
 import org.bukkit.Material;
 import ua.grigo.frontiercontracts.model.BonusConfig;
+import ua.grigo.frontiercontracts.model.ConstructionMetadata;
 import ua.grigo.frontiercontracts.model.ContractOffer;
+import ua.grigo.frontiercontracts.model.ContractRank;
+import ua.grigo.frontiercontracts.model.ContractRequirement;
 import ua.grigo.frontiercontracts.model.ContractScope;
 import ua.grigo.frontiercontracts.model.ContractType;
 import ua.grigo.frontiercontracts.model.PlayerContract;
@@ -23,6 +26,7 @@ import ua.grigo.frontiercontracts.model.PlayerStats;
 import ua.grigo.frontiercontracts.model.RewardBundle;
 import ua.grigo.frontiercontracts.model.RewardItem;
 import ua.grigo.frontiercontracts.model.SettlementReputation;
+import ua.grigo.frontiercontracts.util.ContractDataCodec;
 import ua.grigo.frontiercontracts.util.RewardBundleCodec;
 
 public final class StorageService {
@@ -46,12 +50,16 @@ public final class StorageService {
                     source_board_id TEXT NULL,
                     target_board_id TEXT NULL,
                     type TEXT NOT NULL,
+                    rank TEXT NULL,
                     difficulty TEXT NOT NULL,
                     objective_key TEXT NOT NULL,
                     objective_amount INTEGER NOT NULL,
                     required_material TEXT NULL,
                     required_amount INTEGER NULL,
                     delivered_amount INTEGER NOT NULL DEFAULT 0,
+                    requirements_blob TEXT NULL,
+                    metadata_blob TEXT NULL,
+                    site_blob TEXT NULL,
                     partial_delivery_allowed INTEGER NOT NULL DEFAULT 1,
                     public_offer INTEGER NOT NULL DEFAULT 1,
                     contract_duration_seconds INTEGER NOT NULL,
@@ -113,9 +121,13 @@ public final class StorageService {
             migrateAddColumnIfMissing(statement, "generated_offers", "board_id", "TEXT NULL");
             migrateAddColumnIfMissing(statement, "generated_offers", "source_board_id", "TEXT NULL");
             migrateAddColumnIfMissing(statement, "generated_offers", "target_board_id", "TEXT NULL");
+            migrateAddColumnIfMissing(statement, "generated_offers", "rank", "TEXT NULL");
             migrateAddColumnIfMissing(statement, "generated_offers", "required_material", "TEXT NULL");
             migrateAddColumnIfMissing(statement, "generated_offers", "required_amount", "INTEGER NULL");
             migrateAddColumnIfMissing(statement, "generated_offers", "delivered_amount", "INTEGER NOT NULL DEFAULT 0");
+            migrateAddColumnIfMissing(statement, "generated_offers", "requirements_blob", "TEXT NULL");
+            migrateAddColumnIfMissing(statement, "generated_offers", "metadata_blob", "TEXT NULL");
+            migrateAddColumnIfMissing(statement, "generated_offers", "site_blob", "TEXT NULL");
             migrateAddColumnIfMissing(statement, "generated_offers", "partial_delivery_allowed", "INTEGER NOT NULL DEFAULT 1");
             migrateAddColumnIfMissing(statement, "generated_offers", "public_offer", "INTEGER NOT NULL DEFAULT 1");
             migrateAddColumnIfMissing(statement, "generated_offers", "reward_blob", "TEXT NULL");
@@ -128,7 +140,6 @@ public final class StorageService {
         try {
             statement.executeUpdate("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);
         } catch (SQLException ignored) {
-            // Column already exists.
         }
     }
 
@@ -154,6 +165,14 @@ public final class StorageService {
         try (PreparedStatement statement = connection.prepareStatement(sql);
              ResultSet resultSet = statement.executeQuery()) {
             while (resultSet.next()) {
+                List<ContractRequirement> requirements = decodeRequirements(resultSet);
+                if (requirements.isEmpty()) {
+                    requirements = List.of(new ContractRequirement(
+                        parseMaterial(firstNonBlank(resultSet, "required_material", "objective_key"), Material.PAPER),
+                        getInt(resultSet, "required_amount", resultSet.getInt("objective_amount")),
+                        getInt(resultSet, "delivered_amount", 0)
+                    ));
+                }
                 ContractOffer offer = new ContractOffer(
                     resultSet.getString("id"),
                     resultSet.getString("template_key"),
@@ -163,10 +182,11 @@ public final class StorageService {
                     resultSet.getString("target_board_id"),
                     parseUuid(resultSet.getString("owner_uuid")),
                     ContractType.valueOf(resultSet.getString("type")),
+                    ContractRank.fromString(getString(resultSet, "rank")),
                     resultSet.getString("difficulty"),
-                    parseMaterial(firstNonBlank(resultSet, "required_material", "objective_key"), Material.PAPER),
-                    getInt(resultSet, "required_amount", resultSet.getInt("objective_amount")),
-                    getInt(resultSet, "delivered_amount", 0),
+                    requirements,
+                    decodeMetadata(resultSet),
+                    ContractDataCodec.decodeSite(getString(resultSet, "site_blob")),
                     getBoolean(resultSet, "partial_delivery_allowed", true),
                     getBoolean(resultSet, "public_offer", true),
                     resultSet.getLong("contract_duration_seconds"),
@@ -190,13 +210,13 @@ public final class StorageService {
         try (PreparedStatement statement = connection.prepareStatement("""
             INSERT OR REPLACE INTO generated_offers (
                 id, template_key, board_id, scope, owner_uuid, source_board_id, target_board_id,
-                type, difficulty, objective_key, objective_amount, required_material, required_amount,
-                delivered_amount, partial_delivery_allowed, public_offer,
+                type, rank, difficulty, objective_key, objective_amount, required_material, required_amount,
+                delivered_amount, requirements_blob, metadata_blob, site_blob, partial_delivery_allowed, public_offer,
                 contract_duration_seconds, created_at, offer_expires_at,
                 icon_material, title, description,
                 reward_money, reward_reputation, reward_item_material, reward_item_amount,
                 reward_blob, bonus_reward_blob, bonus_no_death_multiplier, active
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """)) {
             RewardItem legacyItem = offer.rewards().itemRewards().isEmpty()
                 ? new RewardItem(Material.AIR, 0)
@@ -210,28 +230,32 @@ public final class StorageService {
             statement.setString(6, offer.sourceBoardId());
             statement.setString(7, offer.targetBoardId());
             statement.setString(8, offer.type().name());
-            statement.setString(9, offer.difficulty());
-            statement.setString(10, offer.objectiveKey());
-            statement.setInt(11, offer.objectiveAmount());
-            statement.setString(12, offer.requiredMaterial().name());
-            statement.setInt(13, offer.requiredAmount());
-            statement.setInt(14, offer.deliveredAmount());
-            statement.setInt(15, offer.partialDeliveryAllowed() ? 1 : 0);
-            statement.setInt(16, offer.publicOffer() ? 1 : 0);
-            statement.setLong(17, offer.contractDurationSeconds());
-            statement.setLong(18, offer.createdAtEpochSeconds());
-            statement.setLong(19, offer.offerExpiresAtEpochSeconds());
-            statement.setString(20, offer.iconMaterial().name());
-            statement.setString(21, offer.title());
-            statement.setString(22, offer.description());
-            statement.setDouble(23, offer.rewards().money());
-            statement.setInt(24, offer.rewards().reputation());
-            statement.setString(25, legacyItem.material().name());
-            statement.setInt(26, legacyItem.amount());
-            statement.setString(27, RewardBundleCodec.encode(offer.rewards()));
-            statement.setString(28, RewardBundleCodec.encode(offer.bonusReward()));
-            statement.setDouble(29, offer.bonusConfig().noDeathMoneyMultiplier());
-            statement.setInt(30, offer.active() ? 1 : 0);
+            statement.setString(9, offer.rank().name());
+            statement.setString(10, offer.difficulty());
+            statement.setString(11, offer.objectiveKey());
+            statement.setInt(12, offer.objectiveAmount());
+            statement.setString(13, offer.requiredMaterial().name());
+            statement.setInt(14, offer.requiredAmount());
+            statement.setInt(15, offer.deliveredAmount());
+            statement.setString(16, ContractDataCodec.encodeRequirements(offer.requirements()));
+            statement.setString(17, ContractDataCodec.encodeMetadata(offer.metadata()));
+            statement.setString(18, ContractDataCodec.encodeSite(offer.site()));
+            statement.setInt(19, offer.partialDeliveryAllowed() ? 1 : 0);
+            statement.setInt(20, offer.publicOffer() ? 1 : 0);
+            statement.setLong(21, offer.contractDurationSeconds());
+            statement.setLong(22, offer.createdAtEpochSeconds());
+            statement.setLong(23, offer.offerExpiresAtEpochSeconds());
+            statement.setString(24, offer.iconMaterial().name());
+            statement.setString(25, offer.title());
+            statement.setString(26, offer.description());
+            statement.setDouble(27, offer.rewards().money());
+            statement.setInt(28, offer.rewards().reputation());
+            statement.setString(29, legacyItem.material().name());
+            statement.setInt(30, legacyItem.amount());
+            statement.setString(31, RewardBundleCodec.encode(offer.rewards()));
+            statement.setString(32, RewardBundleCodec.encode(offer.bonusReward()));
+            statement.setDouble(33, offer.bonusConfig().noDeathMoneyMultiplier());
+            statement.setInt(34, offer.active() ? 1 : 0);
             statement.executeUpdate();
         }
     }
@@ -390,6 +414,15 @@ public final class StorageService {
             )),
             List.of()
         );
+    }
+
+    private List<ContractRequirement> decodeRequirements(ResultSet resultSet) throws SQLException {
+        String encoded = getString(resultSet, "requirements_blob");
+        return ContractDataCodec.decodeRequirements(encoded);
+    }
+
+    private ConstructionMetadata decodeMetadata(ResultSet resultSet) throws SQLException {
+        return ContractDataCodec.decodeMetadata(getString(resultSet, "metadata_blob"));
     }
 
     private String firstNonBlank(ResultSet resultSet, String primaryColumn, String fallbackColumn) throws SQLException {

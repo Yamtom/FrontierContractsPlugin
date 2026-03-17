@@ -7,9 +7,9 @@ public enum ContractScope {
 
     public String displayName() {
         return switch (this) {
-            case LOCAL -> "Місцевий";
-            case REGIONAL -> "Регіональний";
-            case GLOBAL -> "Глобальний";
+            case LOCAL -> "Local";
+            case REGIONAL -> "Regional";
+            case GLOBAL -> "Global";
         };
     }
 }
