@@ -1,0 +1,245 @@
+templates:
+  timber_request:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    weight: 8
+    icon: OAK_LOG
+    title: "&6Timber Request"
+    flavor: "Settlement needs fresh timber for repairs"
+    material: OAK_LOG
+    amount: 64
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 120
+
+  stone_supply:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    weight: 7
+    icon: COBBLESTONE
+    title: "&6Stone Supply"
+    flavor: "Masons need raw stone for fortification work"
+    material: COBBLESTONE
+    amount: 128
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 180
+      reputation: 4
+
+  iron_stock:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    weight: 6
+    icon: IRON_INGOT
+    title: "&6Iron Stock"
+    flavor: "Smiths are short on processed iron"
+    material: IRON_INGOT
+    amount: 48
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 160
+
+  coal_delivery:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    weight: 6
+    icon: COAL
+    title: "&6Coal Delivery"
+    flavor: "Fuel reserves are running low"
+    material: COAL
+    amount: 64
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 110
+
+  bread_for_villagers:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    weight: 5
+    icon: BREAD
+    title: "&6Bread for Villagers"
+    flavor: "Bakers request emergency food stock"
+    material: BREAD
+    amount: 32
+    expiration-minutes: 120
+    partial-delivery: true
+    public: true
+    reward:
+      money: 90
+      reputation: 2
+
+  hay_reserve:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    weight: 5
+    icon: HAY_BLOCK
+    title: "&6Hay Reserve"
+    flavor: "Animal feed storage must be refilled"
+    material: HAY_BLOCK
+    amount: 16
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 80
+
+  wool_bundle:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    weight: 5
+    icon: WHITE_WOOL
+    title: "&6Wool Bundle"
+    flavor: "Textile workers need more wool bundles"
+    material: WHITE_WOOL
+    amount: 32
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 95
+
+  leather_stockpile:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    weight: 4
+    icon: LEATHER
+    title: "&6Leather Stockpile"
+    flavor: "Crafters need leather for straps and gear"
+    material: LEATHER
+    amount: 24
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 130
+      reputation: 3
+
+  arrow_supply:
+    enabled: true
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    weight: 4
+    icon: ARROW
+    title: "&6Arrow Supply"
+    flavor: "Guards request arrow resupply"
+    material: ARROW
+    amount: 64
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 125
+    bonus-reward:
+      items:
+        - material: EMERALD
+          amount: 1
+
+  carrot_delivery:
+    enabled: false
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    weight: 3
+    icon: CARROT
+    title: "&6Carrot Delivery"
+    flavor: "The kitchen needs fresh carrots"
+    material: CARROT
+    amount: 64
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 80
+
+  potato_delivery:
+    enabled: false
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    weight: 3
+    icon: POTATO
+    title: "&6Potato Delivery"
+    flavor: "Storage crews need more potatoes"
+    material: POTATO
+    amount: 64
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 80
+
+  copper_shipment:
+    enabled: false
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    weight: 3
+    icon: COPPER_INGOT
+    title: "&6Copper Shipment"
+    flavor: "Artisans requested refined copper"
+    material: COPPER_INGOT
+    amount: 48
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 150
+
+  lantern_materials:
+    enabled: false
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    weight: 3
+    icon: TORCH
+    title: "&6Lantern Materials"
+    flavor: "Night watch needs new torch stock"
+    material: TORCH
+    amount: 32
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 75
+
+  rail_stock:
+    enabled: false
+    scope: LOCAL
+    type: DELIVERY
+    difficulty: SUPPLY
+    weight: 2
+    icon: RAIL
+    title: "&6Rail Stock"
+    flavor: "Builders need rails for transport work"
+    material: RAIL
+    amount: 24
+    expiration-minutes: 180
+    partial-delivery: true
+    public: true
+    reward:
+      money: 145

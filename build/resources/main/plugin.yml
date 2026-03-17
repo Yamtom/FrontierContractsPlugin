@@ -1,0 +1,24 @@
+name: FrontierContracts
+version: 1.0.0
+main: ua.grigo.frontiercontracts.FrontierContractsPlugin
+api-version: "1.21"
+author: grigo
+description: Physical settlement supply boards with public delivery tasks, GUI browsing, Vault rewards, SQLite persistence, and reputation.
+softdepend:
+  - Vault
+  - PlaceholderAPI
+commands:
+  contracts:
+    description: Opens contract menus and manages physical settlement boards.
+    usage: /contracts [active|submit|abandon <id>|admin <subcommand>]
+    permission: frontiercontracts.use
+permissions:
+  frontiercontracts.use:
+    description: Use Frontier Contracts menus and accepted-offer flows.
+    default: true
+  frontiercontracts.admin:
+    description: Manage Frontier Contracts boards and data.
+    default: op
+  frontiercontracts.admin.board:
+    description: Admin board commands specifically.
+    default: op

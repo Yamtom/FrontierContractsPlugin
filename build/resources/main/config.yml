@@ -1,0 +1,38 @@
+database:
+  file: frontier-contracts.db
+
+offers:
+  local-slots: 5
+  local-lifetime-minutes: 120
+  regional-slots: 2
+  regional-lifetime-minutes: 180
+  global-slots: 4
+  global-lifetime-minutes: 240
+
+contracts:
+  cleanup-interval-seconds: 60
+  default-no-death-money-multiplier: 1.2
+
+settlements:
+  reputation-enabled: true
+  reputation-increase-on-complete: 10
+  reputation-decrease-on-fail: -5
+  reputation-decrease-on-abandon: -3
+  nearby-board-radius: 256
+
+boards:
+  bell-radius: 13
+  village-poi-radius: 32
+  refresh-interval-seconds: 300
+
+anti-abuse:
+  block-creative-submit: true
+  log-suspicious-completions: true
+
+ui:
+  board-menu-title: "&0Supply Board: %board_name%"
+  detail-title: "&0Contract Details"
+  active-title: "&0Active Contracts"
+
+integration:
+  warn-missing-economy-provider: true

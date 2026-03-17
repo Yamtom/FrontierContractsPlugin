@@ -1,0 +1,4 @@
+# Registered physical supply boards live here.
+# Use /contracts admin scanboard or /contracts admin placeboard to populate this file.
+
+boards: {}
