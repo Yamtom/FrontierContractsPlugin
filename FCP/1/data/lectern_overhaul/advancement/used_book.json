@@ -1,0 +1,34 @@
+{
+  "criteria": {
+    "c1": {
+      "trigger": "minecraft:item_used_on_block",
+      "conditions": {
+        "location": [
+          {
+            "condition": "minecraft:location_check",
+            "predicate": {
+              "block": {
+                "blocks": "lectern",
+                "state": {
+                  "has_book": "true"
+                }
+              }
+            }
+          },
+          {
+            "condition": "minecraft:match_tool",
+            "predicate": {
+              "items": [
+                "minecraft:written_book",
+                "minecraft:writable_book"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "rewards": {
+    "function": "lectern_overhaul:place_book/init"
+  }
+}

@@ -1,0 +1,2 @@
+execute store result storage lectern_overhaul:temp animation.progress int 1 run scoreboard players get #TIMER lectern_overhaul.animation_timer
+function lectern_overhaul:animations/text/two_pages/disappear_right/macro with storage lectern_overhaul:temp animation

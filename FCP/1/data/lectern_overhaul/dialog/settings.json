@@ -1,0 +1,176 @@
+{
+  "type": "minecraft:multi_action",
+  "title": {
+    "text": "Settings"
+  },
+  "external_title": [
+    {
+      "text": ""
+    },
+    {
+      "text": ".",
+      "font": "lectern_overhaul:icons",
+      "shadow_color": 0
+    },
+    {
+      "text": "  Lectern Overhaul"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "minecraft:single_option",
+      "key": "enabled",
+      "label": {
+        "text": "New Book Placement"
+      },
+      "options": [
+        {
+          "id": "1",
+          "display": {
+            "text": "ON"
+          },
+          "initial": true
+        },
+        {
+          "id": "0",
+          "display": {
+            "text": "OFF"
+          },
+          "initial": false
+        }
+      ]
+    },
+    {
+      "type": "minecraft:single_option",
+      "key": "mode",
+      "label": {
+        "text": "Page Mode"
+      },
+      "options": [
+        {
+          "id": "1",
+          "display": {
+            "text": "Single-Page"
+          },
+          "initial": true
+        },
+        {
+          "id": "2",
+          "display": {
+            "text": "Double-Page"
+          },
+          "initial": false
+        }
+      ]
+    },
+    {
+      "type": "minecraft:single_option",
+      "key": "view_range",
+      "label": {
+        "text": "Text View Distance"
+      },
+      "options": [
+        {
+          "id": "0",
+          "display": {
+            "text": "Unlimited"
+          },
+          "initial": true
+        },
+        {
+          "id": "1",
+          "display": {
+            "text": "4 Blocks"
+          },
+          "initial": false
+        },
+        {
+          "id": "2",
+          "display": {
+            "text": "8 Blocks"
+          },
+          "initial": false
+        },
+        {
+          "id": "3",
+          "display": {
+            "text": "12 Blocks"
+          },
+          "initial": false
+        },
+        {
+          "id": "4",
+          "display": {
+            "text": "16 Blocks"
+          },
+          "initial": false
+        }
+      ]
+    },
+    {
+      "type": "minecraft:single_option",
+      "key": "sounds",
+      "label": {
+        "text": "Sounds"
+      },
+      "options": [
+        {
+          "id": "1",
+          "display": {
+            "text": "ON"
+          },
+          "initial": true
+        },
+        {
+          "id": "0",
+          "display": {
+            "text": "OFF"
+          },
+          "initial": false
+        }
+      ]
+    },
+    {
+      "type": "minecraft:single_option",
+      "key": "animation_speed",
+      "label": {
+        "text": "Animations Speed"
+      },
+      "options": [
+        {
+          "id": "0",
+          "display": {
+            "text": "Default"
+          },
+          "initial": true
+        },
+        {
+          "id": "1",
+          "display": {
+            "text": "2x Speed"
+          },
+          "initial": false
+        },
+        {
+          "id": "2",
+          "display": {
+            "text": "Instant Animations"
+          },
+          "initial": false
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "label": {
+        "text": "Apply"
+      },
+      "id": "apply",
+      "action": {
+        "type": "minecraft:dynamic/run_command",
+        "template": "/trigger lectern_overhaul.set_settings set 1$(animation_speed)$(sounds)$(view_range)$(mode)$(enabled)"
+      }
+    }
+  ]
+}

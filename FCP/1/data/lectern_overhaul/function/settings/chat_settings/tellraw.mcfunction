@@ -1,0 +1,23 @@
+tellraw @s {text:"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"}
+
+tellraw @s [{text:"----====[ ",color:gold},{color:"#FFE45C",text:"L"},{color:"#FFDF56",text:"e"},{color:"#FFDB50",text:"c"},{color:"#FFD64A",text:"t"},{color:"#FFD145",text:"e"},{color:"#FFCD3F",text:"r"},{color:"#FFC839",text:"n "},{color:"#FFC333",text:"O"},{color:"#FFBC2E",text:"v"},{color:"#FFB32B",text:"e"},{color:"#FFAA28",text:"r"},{color:"#FFA125",text:"h"},{color:"#FF9822",text:"a"},{color:"#FF8F1F",text:"u"},{color:"#FF7D19",text:"l"},{text:" ]====----",color:gold}]
+
+tellraw @s ""
+tellraw @s [{text:"▶ ",color:dark_gray},{text:"New Book Placement",color:gray}]
+$tellraw @s [{text:"└   ",color:gray},{text:"ON",underlined:bool($(enabled_on)),color:green,hover_event:{action:"show_text",value:{text:"Click to change"}},click_event:{action:"run_command",command:"trigger lectern_overhaul.set_settings set -1011"}},{text:" | ",color:gray},{text:"OFF",underlined:bool($(enabled_off)),color:red,hover_event:{action:"show_text",value:{text:"Click to change"}},click_event:{action:"run_command",command:"trigger lectern_overhaul.set_settings set -1001"}}]
+
+tellraw @s ""
+tellraw @s [{text:"▶ ",color:dark_gray},{text:"Page Mode",color:gray}]
+$tellraw @s [{text:"└   ",color:gray},{text:"Single-Page",underlined:bool($(mode_one)),color:green,hover_event:{action:"show_text",value:{text:"Click to change"}},click_event:{action:"run_command",command:"trigger lectern_overhaul.set_settings set -1012"}},{text:" | ",color:gray},{text:"Double-Page",underlined:bool($(mode_two)),color:gold,hover_event:{action:"show_text",value:{text:"Click to change"}},click_event:{action:"run_command",command:"trigger lectern_overhaul.set_settings set -1022"}}]
+
+tellraw @s ""
+tellraw @s [{text:"▶ ",color:dark_gray},{text:"Text View Range",color:gray}]
+$tellraw @s [{text:"└   ",color:gray},{text:"Unlimited",underlined:bool($(view_range_unlimited)),color:green,hover_event:{action:"show_text",value:{text:"Click to change"}},click_event:{action:"run_command",command:"trigger lectern_overhaul.set_settings set -1003"}},{text:" | ",color:gray},{text:"4 Bl.",underlined:bool($(view_range_4)),color:gold,hover_event:{action:"show_text",value:{text:"Click to change"}},click_event:{action:"run_command",command:"trigger lectern_overhaul.set_settings set -1013"}},{text:" | ",color:gray},{text:"8 Bl.",underlined:bool($(view_range_8)),color:gold,hover_event:{action:"show_text",value:{text:"Click to change"}},click_event:{action:"run_command",command:"trigger lectern_overhaul.set_settings set -1023"}},{text:" | ",color:gray},{text:"12 Bl.",underlined:bool($(view_range_12)),color:gold,hover_event:{action:"show_text",value:{text:"Click to change"}},click_event:{action:"run_command",command:"trigger lectern_overhaul.set_settings set -1033"}},{text:" | ",color:gray},{text:"16 Bl.",underlined:bool($(view_range_16)),color:gold,hover_event:{action:"show_text",value:{text:"Click to change"}},click_event:{action:"run_command",command:"trigger lectern_overhaul.set_settings set -1043"}}]
+
+tellraw @s ""
+tellraw @s [{text:"▶ ",color:dark_gray},{text:"Sounds",color:gray}]
+$tellraw @s [{text:"└   ",color:gray},{text:"ON",underlined:bool($(sounds_on)),color:green,hover_event:{action:"show_text",value:{text:"Click to change"}},click_event:{action:"run_command",command:"trigger lectern_overhaul.set_settings set -1014"}},{text:" | ",color:gray},{text:"OFF",underlined:bool($(sounds_off)),color:red,hover_event:{action:"show_text",value:{text:"Click to change"}},click_event:{action:"run_command",command:"trigger lectern_overhaul.set_settings set -1004"}}]
+
+tellraw @s ""
+tellraw @s [{text:"▶ ",color:dark_gray},{text:"Animations Speed",color:gray}]
+$tellraw @s [{text:"└   ",color:gray},{text:"Default",underlined:bool($(anim_speed_default)),color:green,hover_event:{action:"show_text",value:{text:"Click to change"}},click_event:{action:"run_command",command:"trigger lectern_overhaul.set_settings set -1005"}},{text:" | ",color:gray},{text:"2x Speed",underlined:bool($(anim_speed_2x)),color:gold,hover_event:{action:"show_text",value:{text:"Click to change"}},click_event:{action:"run_command",command:"trigger lectern_overhaul.set_settings set -1015"}},{text:" | ",color:gray},{text:"Instant Animations",underlined:bool($(anim_speed_instant)),color:red,hover_event:{action:"show_text",value:{text:"Click to change"}},click_event:{action:"run_command",command:"trigger lectern_overhaul.set_settings set -1025"}}]

@@ -1,0 +1,2 @@
+function lectern_overhaul:animations/text/two_pages/appear_left/macro with storage lectern_overhaul:temp animation
+execute as @e[type=text_display,tag=lectern_overhaul.book.second_text,distance=..0.1,limit=1] run function lectern_overhaul:animations/text/two_pages/appear_right/macro with storage lectern_overhaul:temp animation

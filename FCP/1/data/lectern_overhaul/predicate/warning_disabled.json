@@ -1,0 +1,7 @@
+{
+    "condition": "entity_scores",
+    "entity": "this",
+    "scores": {
+        "lectern_overhaul.disable_warning": 1
+    }
+}

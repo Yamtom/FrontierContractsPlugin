@@ -7,7 +7,10 @@ Players walk to a real board structure in the world, inspect public supply reque
 ## Core behavior
 
 - Settlement boards are physical structures in the world.
-- A valid board is a centered 3x2 wooden plank surface on a fence post, with front wall signs and a linked bell within 13 blocks.
+- A valid board is a centered 3x2 wooden plank surface on a fence post, with front wall signs facing the board front.
+- The top-center header sign must read `contact`.
+- A linked bell must be within 13 blocks.
+- Optional stricter validation can require a villager bed or job-site block near that bell via `boards.require-village-poi-near-bell`.
 - Empty-hand right-click opens the board GUI.
 - Right-click with a resource item attempts delivery first.
 - Local board tasks are public by default and support partial turn-in.
