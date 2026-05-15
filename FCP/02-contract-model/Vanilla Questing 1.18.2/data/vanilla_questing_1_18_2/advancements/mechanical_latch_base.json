@@ -1,0 +1,34 @@
+{
+  "display": {
+    "icon": {
+      "item": "minecraft:piston"
+    },
+    "title": {
+      "translate": "advancements.mechanical_latch_base.title"
+    },
+    "description": {
+      "translate": "advancements.mechanical_latch_base.descr"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "mechanical_latch_base": {
+      "trigger": "minecraft:placed_block",
+      "conditions": {
+        "item": {
+          "items": [
+            "minecraft:piston"
+          ]
+        }
+      }
+    }
+  },
+  "rewards": {
+    "experience": 0,
+    "function": "vanilla_questing_1_18_2:reward"
+  },
+  "parent": "vanilla_questing_1_18_2:temporary_binary_signal"
+}

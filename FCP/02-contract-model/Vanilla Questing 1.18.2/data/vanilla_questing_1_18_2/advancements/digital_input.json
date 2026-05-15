@@ -1,0 +1,34 @@
+{
+  "display": {
+    "icon": {
+      "item": "minecraft:lever"
+    },
+    "title": {
+      "translate": "advancements.digital_input.title"
+    },
+    "description": {
+      "translate": "advancements.digital_input.descr"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "digital_input": {
+      "trigger": "minecraft:placed_block",
+      "conditions": {
+        "item": {
+          "items": [
+            "minecraft:lever"
+          ]
+        }
+      }
+    }
+  },
+  "rewards": {
+    "experience": 0,
+    "function": "vanilla_questing_1_18_2:reward"
+  },
+  "parent": "vanilla_questing_1_18_2:analog_amplification"
+}

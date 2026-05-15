@@ -1,2 +1,0 @@
-execute unless score @s lectern_overhaul.player.warning_timer matches 20.. run function lectern_overhaul:warning/tick
-execute if score @s lectern_overhaul.player.left_game matches 1.. run function lectern_overhaul:warning/reset_timer

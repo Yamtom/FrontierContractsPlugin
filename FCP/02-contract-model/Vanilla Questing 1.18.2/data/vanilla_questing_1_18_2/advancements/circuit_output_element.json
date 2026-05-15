@@ -1,0 +1,34 @@
+{
+  "display": {
+    "icon": {
+      "item": "minecraft:redstone_lamp"
+    },
+    "title": {
+      "translate": "advancements.circuit_output_element.title"
+    },
+    "description": {
+      "translate": "advancements.circuit_output_element.descr"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "circuit_output_element": {
+      "trigger": "minecraft:placed_block",
+      "conditions": {
+        "item": {
+          "items": [
+            "minecraft:redstone_lamp"
+          ]
+        }
+      }
+    }
+  },
+  "rewards": {
+    "experience": 0,
+    "function": "vanilla_questing_1_18_2:reward"
+  },
+  "parent": "vanilla_questing_1_18_2:digital_input"
+}

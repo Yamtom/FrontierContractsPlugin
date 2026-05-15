@@ -1,4 +1,0 @@
-execute if score @s lectern_overhaul.page matches 2 if score @s lectern_overhaul.previous_page matches 0 if score @s lectern_overhaul.animation_timer matches ..-2 run function lectern_overhaul:animations/text/one_page/init
-execute if score @s lectern_overhaul.page matches 0 if score @s lectern_overhaul.animation_timer matches 0.. run function lectern_overhaul:animations/text/one_page/init
-execute if score @s lectern_overhaul.left_page = @s lectern_overhaul.page_max if score @s lectern_overhaul.animation_timer matches 0.. run function lectern_overhaul:animations/text/one_page/init
-execute if score @s lectern_overhaul.previous_page > @s lectern_overhaul.page_max if score @s lectern_overhaul.animation_timer matches ..-2 run function lectern_overhaul:animations/text/one_page/init

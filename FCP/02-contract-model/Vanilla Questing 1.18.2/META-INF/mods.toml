@@ -1,0 +1,26 @@
+modLoader="javafml"
+loaderVersion="[40,)"
+license="Academic Free License v3.0"
+
+[[mods]]
+modId="vanilla_questing_1_18_2"
+version="00032022.20."
+displayName="Vanilla Questing (1.18.2 release)"
+credits="Created using mod maker MCreator - https://mcreator.net/about"
+displayURL="https://sites.google.com/view/vanillaquesting/home-page?authuser=0"
+logoFile="logo.png"
+authors="BittleLit, MCreator"
+description='''
+Vanilla Questing is a mod which integrates quests into Minecraft while adding the least side features - UIs, commands, all that, by using advancements, goals and challenges, or just achievements for short.
+'''
+
+[[dependencies.vanilla_questing_1_18_2]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.18.2]"
+    ordering="NONE"
+    side="BOTH"
+
+
+
+

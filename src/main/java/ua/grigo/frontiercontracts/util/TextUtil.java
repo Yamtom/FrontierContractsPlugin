@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.bukkit.ChatColor;
 
 public final class TextUtil {
     private static final DecimalFormat MONEY_FORMAT = new DecimalFormat("0.##");
@@ -14,7 +13,7 @@ public final class TextUtil {
     }
 
     public static String colorize(String input) {
-        return ChatColor.translateAlternateColorCodes('&', input == null ? "" : input);
+        return (input == null ? "" : input).replaceAll("(?i)&([0-9a-fk-or])", "\u00a7$1");
     }
 
     public static List<String> colorize(List<String> lines) {
@@ -86,7 +85,7 @@ public final class TextUtil {
         if (raw == null) {
             return "";
         }
-        return ChatColor.stripColor(colorize(raw))
+        return colorize(raw).replaceAll("(?i)\u00a7[0-9a-fk-or]", "")
             .replaceAll("\\s+", "")
             .toLowerCase(java.util.Locale.ROOT)
             .trim();

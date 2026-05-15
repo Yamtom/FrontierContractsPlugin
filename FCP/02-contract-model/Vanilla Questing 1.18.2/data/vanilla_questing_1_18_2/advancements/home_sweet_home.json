@@ -1,0 +1,30 @@
+{
+  "display": {
+    "icon": {
+      "item": "vanilla_questing_1_18_2:portal_exit"
+    },
+    "title": {
+      "translate": "advancements.home_sweet_home.title"
+    },
+    "description": {
+      "translate": "advancements.home_sweet_home.descr"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "home_sweet_home": {
+      "trigger": "minecraft:changed_dimension",
+      "conditions": {
+        "to": "minecraft:overworld"
+      }
+    }
+  },
+  "rewards": {
+    "experience": 0,
+    "function": "vanilla_questing_1_18_2:reward"
+  },
+  "parent": "vanilla_questing_1_18_2:external_resolution"
+}

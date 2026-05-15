@@ -1,7 +1,7 @@
 name: FrontierContracts
 version: ${version}
 main: ua.grigo.frontiercontracts.FrontierContractsPlugin
-api-version: "1.21"
+api-version: "26.1.2"
 author: grigo
 description: Physical settlement supply boards with public delivery tasks, GUI browsing, Vault rewards, SQLite persistence, and reputation.
 softdepend:

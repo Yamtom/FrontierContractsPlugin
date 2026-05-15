@@ -1,3 +1,0 @@
-execute if entity @e[tag=lectern_overhaul.book.interact,dx=0,dy=0,dz=0,nbt={attack:{}},type=interaction] positioned ~0.5 ~ ~0.5 run function lectern_overhaul:book_logic/kill with entity @s data
-execute if entity @e[tag=lectern_overhaul.book.interact,dx=0,dy=0,dz=0,nbt={interaction:{}},type=interaction] if score @s lectern_overhaul.settings.mode matches 1 run function lectern_overhaul:book_logic/turn_page/one_page/init
-execute if entity @e[tag=lectern_overhaul.book.interact,dx=0,dy=0,dz=0,nbt={interaction:{}},type=interaction] if score @s lectern_overhaul.settings.mode matches 2 run function lectern_overhaul:book_logic/turn_page/two_pages/init

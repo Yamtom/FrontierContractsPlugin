@@ -9,6 +9,7 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
 import org.bukkit.block.data.Directional;
+import org.bukkit.block.sign.Side;
 import org.bukkit.entity.Player;
 import ua.grigo.frontiercontracts.model.BoardColumnSide;
 
@@ -62,7 +63,7 @@ public final class BoardPlacementService {
                     location.getBlock().setBlockData(directional, false);
                 }
                 if (location.equals(layout.headerSign()) && location.getBlock().getState() instanceof Sign sign) {
-                    sign.setLine(0, "contact");
+                    sign.getSide(Side.FRONT).setLine(0, "contact");
                     sign.update(true, false);
                 }
             }

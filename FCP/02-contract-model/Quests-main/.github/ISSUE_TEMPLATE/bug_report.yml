@@ -1,0 +1,36 @@
+name: Report a bug
+description: when something isn't working right.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for submitting a bug report! Please answer the following questions:
+  - type: 'textarea'
+    attributes:
+      label: 'What is your Quests version / build number (do *not* say "latest")?'
+      description: 'You can find this using the `/quests info` command.'
+      placeholder: 'The version used is...'
+    validations:
+      required: true
+  - type: 'textarea'
+    attributes:
+      label: 'Describe the problem and how to replicate it.'
+      description: 'Be as detailed as possible.'
+      placeholder: "What happened was..."
+    validations:
+      required: true
+  - type: 'textarea'
+    attributes:
+      label: 'Any console errors to share?'
+      description: 'Paste into the field below.'
+      render: shell
+    validations:
+      required: true
+  - type: 'textarea'
+    attributes:
+      label: 'If applicable, can you provide an example quest from quests.yml?'
+      description: 'Do not upload the file itself.'
+      render: yaml
+    validations:
+      required: false

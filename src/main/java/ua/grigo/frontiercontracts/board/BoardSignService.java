@@ -1,11 +1,11 @@
 package ua.grigo.frontiercontracts.board;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.block.Sign;
+import org.bukkit.block.sign.Side;
 import ua.grigo.frontiercontracts.model.Board;
 import ua.grigo.frontiercontracts.model.ContractOffer;
 import ua.grigo.frontiercontracts.model.ContractType;
@@ -98,31 +98,10 @@ public final class BoardSignService {
         }
 
         List<String> normalized = normalizeLines(lines);
-        if (tryWriteFront(sign, normalized)) {
-            sign.update(true, false);
-            return;
-        }
-
         for (int index = 0; index < SIGN_LINE_COUNT; index++) {
-            sign.setLine(index, normalized.get(index));
+            sign.getSide(Side.FRONT).setLine(index, normalized.get(index));
         }
         sign.update(true, false);
-    }
-
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    private boolean tryWriteFront(Sign sign, List<String> lines) {
-        try {
-            Class<?> sideEnumClass = Class.forName("org.bukkit.block.sign.Side");
-            Object front = Enum.valueOf((Class<? extends Enum>) sideEnumClass.asSubclass(Enum.class), "FRONT");
-            Object signSide = sign.getClass().getMethod("getSide", sideEnumClass).invoke(sign, front);
-            Method setLine = signSide.getClass().getMethod("setLine", int.class, String.class);
-            for (int index = 0; index < SIGN_LINE_COUNT; index++) {
-                setLine.invoke(signSide, index, lines.get(index));
-            }
-            return true;
-        } catch (ReflectiveOperationException exception) {
-            return false;
-        }
     }
 
     private List<String> normalizeLines(List<String> input) {
@@ -179,6 +158,6 @@ public final class BoardSignService {
     }
 
     private String stripColor(String raw) {
-        return org.bukkit.ChatColor.stripColor(TextUtil.colorize(raw));
+        return TextUtil.colorize(raw).replaceAll("(?i)\u00a7[0-9a-fk-or]", "");
     }
 }

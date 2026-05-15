@@ -1,2 +1,0 @@
-$execute unless entity @s[tag=lectern_overhaul.book.writable_book] run data modify entity @s text set from entity @s data.book.components."minecraft:written_book_content".pages[$(page)].raw
-$execute if entity @s[tag=lectern_overhaul.book.writable_book] run data modify entity @s text set from entity @s data.book.components."minecraft:writable_book_content".pages[$(page)].raw
