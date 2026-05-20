@@ -15,8 +15,6 @@ import ua.grigo.frontiercontracts.contract.ContractService;
 import ua.grigo.frontiercontracts.listener.BoardProtectionListener;
 import ua.grigo.frontiercontracts.listener.ConstructionWorldListener;
 import ua.grigo.frontiercontracts.gui.MenuService;
-import ua.grigo.frontiercontracts.hook.FrontierPlaceholderExpansion;
-import ua.grigo.frontiercontracts.hook.VaultHook;
 import ua.grigo.frontiercontracts.listener.BlockInteractListener;
 import ua.grigo.frontiercontracts.listener.ContractProgressListener;
 import ua.grigo.frontiercontracts.listener.MenuListener;
@@ -27,7 +25,6 @@ public final class FrontierContractsPlugin extends JavaPlugin {
     private int cleanupTaskId = -1;
     private PluginSettings settings;
     private MessageService messageService;
-    private VaultHook vaultHook;
     private StorageService storageService;
     private BoardService boardService;
     private BoardSignService boardSignService;
@@ -40,12 +37,11 @@ public final class FrontierContractsPlugin extends JavaPlugin {
         saveDefaultConfig();
         saveResourceIfMissing("contracts.yml");
         saveResourceIfMissing("messages.yml");
+        saveResourceIfMissing("messages_uk.yml");
         saveResourceIfMissing("boards.yml");
 
         settings = PluginSettings.from(getConfig());
         messageService = new MessageService(this);
-        vaultHook = new VaultHook(this);
-        vaultHook.setup();
 
         storageService = new StorageService(getDataFolder(), settings.databaseFile());
         try {
@@ -60,7 +56,7 @@ public final class FrontierContractsPlugin extends JavaPlugin {
         boardService.load(settings);
         boardSignService = new BoardSignService(getServer(), messageService);
 
-        contractService = new ContractService(this, storageService, vaultHook, messageService, boardService, boardSignService, settings);
+        contractService = new ContractService(this, storageService, messageService, boardService, boardSignService, settings);
         menuService = new MenuService(this, contractService, messageService);
 
         if (!reloadPluginState()) {
@@ -69,7 +65,6 @@ public final class FrontierContractsPlugin extends JavaPlugin {
         }
         registerCommands();
         registerListeners();
-        registerHooks();
     }
 
     @Override
@@ -83,7 +78,6 @@ public final class FrontierContractsPlugin extends JavaPlugin {
         reloadConfig();
         settings = PluginSettings.from(getConfig());
         messageService.reload();
-        vaultHook.setup();
         boardService.load(settings);
         contractsConfiguration = YamlConfiguration.loadConfiguration(new File(getDataFolder(), "contracts.yml"));
         try {
@@ -133,21 +127,6 @@ public final class FrontierContractsPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new BoardProtectionListener(boardService, messageService), this);
         Bukkit.getPluginManager().registerEvents(new ContractProgressListener(contractService), this);
         Bukkit.getPluginManager().registerEvents(new ConstructionWorldListener(this, contractService), this);
-    }
-
-    private void registerHooks() {
-        if (vaultHook.hasEconomy()) {
-            messageService.send(Bukkit.getConsoleSender(), "system.economy-hooked");
-        } else {
-            messageService.send(Bukkit.getConsoleSender(), "system.economy-provider-missing");
-        }
-
-        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            new FrontierPlaceholderExpansion(this).register();
-            messageService.send(Bukkit.getConsoleSender(), "system.placeholder-hooked");
-        } else {
-            messageService.send(Bukkit.getConsoleSender(), "system.placeholder-missing");
-        }
     }
 
     private void restartCleanupTask() {

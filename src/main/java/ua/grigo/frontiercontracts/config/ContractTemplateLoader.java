@@ -218,7 +218,8 @@ public final class ContractTemplateLoader {
             RewardBundle.empty(),
             new BonusConfig(1.0D),
             archetype.poolTags(),
-            ProjectTrigger.none()
+            ProjectTrigger.none(),
+            archetype.maxPlayers()
         );
     }
 
@@ -302,7 +303,8 @@ public final class ContractTemplateLoader {
                 bonusReward,
                 new BonusConfig(noDeathMult),
                 sec.getStringList("pool-tags"),
-                trigger
+                trigger,
+                Math.max(1, sec.getInt("max-simultaneous-players", 1))
             ));
         }
         templates.sort(Comparator.comparing(ContractTemplate::key));
@@ -520,7 +522,8 @@ public final class ContractTemplateLoader {
             durationMinutes,
             sec.getBoolean("partial-delivery", true),
             sec.getBoolean("public", true),
-            sec.getStringList("pool-tags")
+            sec.getStringList("pool-tags"),
+            Math.max(1, sec.getInt("max-simultaneous-players", 1))
         );
     }
 
@@ -968,7 +971,8 @@ public final class ContractTemplateLoader {
         int durationMinutes,
         boolean partialDeliveryAllowed,
         boolean publicOffer,
-        List<String> poolTags
+        List<String> poolTags,
+        int maxPlayers
     ) {
     }
 }

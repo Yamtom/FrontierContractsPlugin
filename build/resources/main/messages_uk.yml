@@ -1,0 +1,187 @@
+﻿prefix: "&7[&6FrontierContracts&7] "
+
+errors:
+  player-only: "&cТільки гравці можуть використовувати цю команду."
+  no-permission: "&cУ вас немає дозволу."
+  unknown-subcommand: "&cНевідома підкоманда."
+  missing-argument: "&cВідсутній аргумент."
+  invalid-argument: "&cНеправильний аргумент."
+  unavailable-offer: "&cЦей контракт більше недоступний."
+  board-not-found: "&cДошку не знайдено."
+  already-accepted: "&cВи вже прийняли цей контракт."
+  invalid-submit: "&cНемає готових контрактів для здачі."
+  not-enough-items: "&cУ вас недостатньо предметів."
+  not-ready: "&cЦей контракт ще не готовий."
+  economy-missing: "&eФінансова нагорода показана без зарахування."
+  creative-mode: "&cУ режимі творчості або спостерігача прогрес контрактів заблоковано."
+  no-such-contract: "&cАктивний контракт не знайдено."
+  no-matching-resource: "&cЖоден активний контракт дошки не приймає цей ресурс."
+  full-delivery-required: "&cЦей контракт вимагає здачі всього залишку за один раз."
+  board-invalid: "&cДошка пошкоджена. Зверніться до адміністратора."
+  board-protected: "&cЦя дошка поселення захищена."
+  board-id-exists: "&cДошка з таким ID вже існує."
+  no-board-target: "&cСпочатку подивіться на конструкцію дошки або цільову точку."
+  contract-full: "&cУсі місця для цього контракту зайняті."
+
+system:
+  reloaded: "&aFrontier Contracts перезавантажено."
+  regenerated: "&aПули офферів перегенеровано."
+  board-refreshed: "&aДошку %board% оновлено."
+  reputation-applied: "&aРепутацію %amount% нараховано гравцю %player% на дошці %board%."
+  board-registered: "&aДошку %board% зареєстровано."
+  board-placed: "&aДошку %board% встановлено та зареєстровано."
+  board-valid: "&aДошка %board% коректна. Відстань до дзвону: %distance%."
+
+contracts:
+  accepted: "&aПрийнято: &f%title%&a. Залишилось: &f%time_left%"
+  completed: "&aКонтракт виконано: &f%title%"
+  complete-summary: "&aНагорода за &f%title%&a. Монети: &f%money%"
+  failed-expired: "&cКонтракт провалено (час вийшов): &f%title%"
+  abandoned: "&cКонтракт скасовано: &f%title%&c. Репутація: &f%reputation_delta%"
+  progress-delivery: "&7Здано для &f%title%&7: &f%progress%/%goal% %resource%"
+  submit-summary: "&aЗдано контрактів: &f%claimed%"
+  submit-summary-none: "&cНемає готових контрактів для здачі."
+  reward-money: "&7Нагорода: &a%money% монет"
+  reward-reputation: "&7Нагорода: &b+%reputation% репутації"
+  reward-item: "&7Предмет-нагорода: &f%amount%x %item%"
+  reward-command: "&7Бонусну команду виконано."
+  bonus-applied: "&aБонус без смерті: &f+%bonus_percent%%% монет"
+
+gui:
+  sections:
+    regional: "&6Регіональні проєкти"
+    global: "&bГлобальні контракти"
+    local: "&aЗавдання поселення"
+    active: "&eВаші активні контракти"
+    regional-info:
+      - "&7Спільні проєкти поселень з фізичними дошками."
+      - "&7Регіональні завдання публічні та виконуються через прив'язану дошку."
+    global-info:
+      - "&7Гібридні контракти з прийняттям."
+      - "&7Тільки глобальні оффери використовують схему прийняття/здачі."
+  labels:
+    accept: "&aПрийняти контракт"
+    submit: "&aЗдати контракт"
+    claim: "&aОтримати нагороду"
+    back: "&7Назад"
+    unavailable: "&cНедоступно"
+    active: "&eВиконується"
+    ready: "&aГотово"
+    expired: "&cПрострочено"
+    completed: "&aВиконано"
+    no-contracts: "&7Немає контрактів"
+    delivery: "&aДоставка на дошку"
+  lore:
+    scope: "&7Область: &f%scope%"
+    difficulty: "&7Тип: &f%difficulty%"
+    objective: "&7Завдання: &f%objective%"
+    reward-money: "&7Монети: &a%money%"
+    reward-reputation: "&7Репутація: &b%reputation%"
+    reward-item: "&7Предмет: &f%amount%x %item%"
+    time-left: "&7Залишилось: &f%time_left%"
+    progress: "&7Прогрес: &f%progress%/%goal%"
+    click-details: "&eНатисніть для деталей"
+    click-back: "&7Повернутися"
+    click-accept: "&eНатисніть, щоб прийняти"
+    click-submit: "&eНатисніть, щоб здати"
+    click-claim: "&eНатисніть, щоб отримати"
+    already-accepted: "&7Ви вже виконуєте цей контракт."
+    already-finished: "&7Ви вже виконали цей оффер."
+    no-active-contracts: "&7У вас немає активних глобальних контрактів."
+
+signs:
+  labels:
+    deliver: "Доставка"
+    build: "Будівництво"
+  idle:
+    - "Завдань нема"
+    - ""
+    - ""
+    - "Очікування"
+  invalid:
+    - "Дошка"
+    - "Офлайн"
+    - ""
+    - "Перебудова"
+
+system:
+  reload-failed: "Перезавантаження провалилося. Перевірте консоль."
+
+gui:
+  board:
+    local-info:
+      - "&7Місцеві публічні замовлення на цій дошці."
+      - "&7Клацніть правою кнопкою по дошці з потрібним ресурсом, щоб здати."
+      - "&7Будівельні завдання показують компактний прогрес вимог."
+    header:
+      settlement: "&7Поселення: &f%value%"
+      type: "&7Тип: &f%value%"
+      bell-link-valid: "&7Зв'язок із дзвоном: &aпідтверджено"
+      bell-link-invalid: "&7Зв'язок із дзвоном: &cвідсутній"
+      bell-distance: "&7Відстань до дзвону: &f%value%"
+      refresh: "&7Оновлення: &f%value%"
+      reputation: "&7Репутація: &b%value%"
+      trust: "&7Довіра поселення: &a%value%"
+      community-level: "&7Рівень спільноти: &f%value%"
+      regional-pool: "&7Регіональний пул: &f%value%"
+      validation-issues: "&cПроблеми перевірки:"
+      validation-error: "&7- %value%"
+  offer:
+    rank: "&7Ранг: &f%rank% &8- &7%desc%"
+    type: "&7Тип: &f%type%"
+    reward: "&7Нагорода: &a%reward%"
+    expires: "&7Закінчується: &f%time%"
+    click-details: "&eНатисніть для деталей"
+    linked-board: "&7Прив'язана дошка: &f%value%"
+    public-regional: "&7Публічний регіональний проєкт."
+    scope: "&7Область: &f%scope%"
+    difficulty: "&7Складність: &f%value%"
+    closed: "&7Цей оффер вже закрито для вас."
+    unavailable: "&7Цей оффер більше недоступний для вас."
+    slots-available: "&7Вільних місць: &a%available%&7/&f%max%"
+    slots-taken: "&7Усі місця зайняті (%max%/%max%)."
+    no-longer-available: "&7Цей оффер більше недоступний."
+  info:
+    title: "&6Інформація про проєкт"
+    linked-board: "&7Прив'язана дошка: &f%value%"
+    site-anchor: "&7Точка прив'язки: &f%x%, %y%, %z%"
+    road-tiles: "&7Плитки дороги: &f%value%"
+    surface: "&7Поверхня: &f%value%"
+    building: "&7Будівля: &f%value%"
+    floors: "&7Поверхи: &f%value%"
+    recommended-tool: "&7Рекомендований інструмент: &f%value%"
+    board-turn-in: "&7Здача і перевірка відбуваються на прив'язаній фізичній дошці."
+    global-contract: "&7Глобальний гібридний контракт."
+    global-submit: "&7Прийміть тут, потім здайте з інвентарю."
+  reward:
+    title: "&6Нагороди"
+    money: "&7Монети: &a%value%"
+    reputation: "&7Репутація: &b%value%"
+    item: "&7Предмет: &f%amount%x %item%"
+    command-rewards: "&7Включає командні нагороди"
+    summary:
+      coins: "%value% монет"
+      rep: "+%value% реп"
+      items: "%amount%x %item%"
+      command: "командна нагорода"
+      fallback: "нагорода"
+  requirements:
+    title: "&6Вимоги"
+    line: "&7- &f%material% &8%delivered%/%total%"
+  action:
+    not-ready:
+      - "&7Контракт ще не готовий."
+      - "&7Принесіть потрібні предмети та поверніться."
+  status:
+    saved:
+      - "&7Прогрес зберігається в SQLite."
+      - "&7Нічого не буде втрачено після перезапуску."
+  progress:
+    requirements: "&7Вимоги: &f%completed%/%total%"
+    delivered: "&7Здано: &f%delivered%/%total%"
+    simple: "&7Прогрес: &f%progress%/%goal%"
+  flow:
+    linked-board: "&7Прив'язана дошка: &f%value%"
+    bring-resources: "&7Принесіть необхідні ресурси до тієї дошки."
+    construction-shared: "&7Прогрес будівництва публічно відображається."
+    road-surface: "&7Завершення дороги також вимагає відповідності покриття ділянки."

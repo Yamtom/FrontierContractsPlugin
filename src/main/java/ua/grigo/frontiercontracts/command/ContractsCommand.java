@@ -139,7 +139,7 @@ public final class ContractsCommand implements CommandExecutor, TabCompleter {
         if (plugin.reloadPluginState()) {
             messages.send(sender, "system.reloaded");
         } else {
-            sender.sendMessage("Reload failed. Check console.");
+            messages.send(sender, "system.reload-failed");
         }
         return true;
     }

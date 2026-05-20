@@ -31,6 +31,8 @@ public final class ContractOffer {
     private final RewardBundle bonusReward;
     private final BonusConfig bonusConfig;
     private final boolean specialOffer;
+    private final int maxPlayers;
+    private int activePlayers;
     private boolean active;
 
     public ContractOffer(
@@ -58,6 +60,8 @@ public final class ContractOffer {
         RewardBundle rewards,
         RewardBundle bonusReward,
         BonusConfig bonusConfig,
+        int maxPlayers,
+        int activePlayers,
         boolean specialOffer,
         boolean active
     ) {
@@ -86,6 +90,8 @@ public final class ContractOffer {
         this.rewards = rewards == null ? RewardBundle.empty() : rewards;
         this.bonusReward = bonusReward == null ? RewardBundle.empty() : bonusReward;
         this.bonusConfig = bonusConfig == null ? new BonusConfig(1.0D) : bonusConfig;
+        this.maxPlayers = Math.max(1, maxPlayers);
+        this.activePlayers = Math.max(0, activePlayers);
         this.specialOffer = specialOffer;
         this.active = active;
     }
@@ -117,6 +123,12 @@ public final class ContractOffer {
     public boolean specialOffer() { return specialOffer; }
     public boolean active() { return active; }
     public void setActive(boolean active) { this.active = active; }
+    public int maxPlayers() { return maxPlayers; }
+    public int activePlayers() { return activePlayers; }
+    public void setActivePlayers(int activePlayers) { this.activePlayers = Math.max(0, activePlayers); }
+    public void incrementActivePlayers() { this.activePlayers++; }
+    public void decrementActivePlayers() { if (activePlayers > 0) activePlayers--; }
+    public boolean canAccept() { return activePlayers < maxPlayers; }
 
     public Material requiredMaterial() {
         return requirements.isEmpty() ? Material.AIR : requirements.getFirst().material();

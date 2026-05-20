@@ -18,8 +18,14 @@ public final class MessageService {
     }
 
     public void reload() {
-        File file = new File(plugin.getDataFolder(), "messages.yml");
-        this.configuration = YamlConfiguration.loadConfiguration(file);
+        String lang = plugin.getConfig().getString("language", "en");
+        File langFile = new File(plugin.getDataFolder(), "messages_" + lang + ".yml");
+        if (!"en".equals(lang) && langFile.exists()) {
+            this.configuration = YamlConfiguration.loadConfiguration(langFile);
+        } else {
+            File file = new File(plugin.getDataFolder(), "messages.yml");
+            this.configuration = YamlConfiguration.loadConfiguration(file);
+        }
     }
 
     public String raw(String path) {

@@ -152,6 +152,10 @@ public final class StorageService {
             migrateAddColumnIfMissing(statement, "generated_offers", "special_offer", "INTEGER NOT NULL DEFAULT 0");
             migrateAddColumnIfMissing(statement, "player_contracts", "board_id", "TEXT NULL");
             migrateAddColumnIfMissing(statement, "player_stats", "contract_xp", "INTEGER NOT NULL DEFAULT 0");
+            migrateAddColumnIfMissing(statement, "generated_offers", "max_players", "INTEGER NOT NULL DEFAULT 1");
+            migrateAddColumnIfMissing(statement, "generated_offers", "active_players", "INTEGER NOT NULL DEFAULT 0");
+            migrateAddColumnIfMissing(statement, "player_contracts", "type", "TEXT NOT NULL DEFAULT 'DELIVERY'");
+            migrateAddColumnIfMissing(statement, "player_contracts", "requirements_blob", "TEXT NULL");
         }
     }
 
@@ -217,6 +221,8 @@ public final class StorageService {
                     decodeRewardBundle(resultSet),
                     RewardBundleCodec.decode(getString(resultSet, "bonus_reward_blob")),
                     new BonusConfig(resultSet.getDouble("bonus_no_death_multiplier")),
+                    getInt(resultSet, "max_players", 1),
+                    getInt(resultSet, "active_players", 0),
                     getBoolean(resultSet, "special_offer", false),
                     resultSet.getInt("active") == 1
                 );
@@ -235,8 +241,9 @@ public final class StorageService {
                 contract_duration_seconds, created_at, offer_expires_at,
                 icon_material, title, description,
                 reward_money, reward_reputation, reward_item_material, reward_item_amount,
-                reward_blob, bonus_reward_blob, bonus_no_death_multiplier, special_offer, active
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                reward_blob, bonus_reward_blob, bonus_no_death_multiplier, special_offer, active,
+                max_players, active_players
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """)) {
             RewardItem legacyItem = offer.rewards().itemRewards().isEmpty()
                 ? new RewardItem(Material.AIR, 0)
@@ -277,6 +284,8 @@ public final class StorageService {
             statement.setDouble(33, offer.bonusConfig().noDeathMoneyMultiplier());
             statement.setInt(34, offer.specialOffer() ? 1 : 0);
             statement.setInt(35, offer.active() ? 1 : 0);
+            statement.setInt(36, offer.maxPlayers());
+            statement.setInt(37, offer.activePlayers());
             statement.executeUpdate();
         }
     }
@@ -305,8 +314,10 @@ public final class StorageService {
                     resultSet.getString("id"),
                     resultSet.getString("offer_id"),
                     resultSet.getString("board_id"),
+                    parseContractType(getString(resultSet, "type")),
                     playerUuid,
                     resultSet.getInt("progress"),
+                    ContractDataCodec.decodeRequirements(getString(resultSet, "requirements_blob")),
                     resultSet.getLong("accepted_at"),
                     resultSet.getLong("expires_at"),
                     resultSet.getInt("deathless") == 1,
@@ -336,8 +347,9 @@ public final class StorageService {
         try (PreparedStatement statement = connection.prepareStatement("""
             INSERT OR REPLACE INTO player_contracts (
                 id, offer_id, board_id, player_uuid, progress,
-                accepted_at, expires_at, deathless, status, completed_at
-            ) VALUES (?,?,?,?,?,?,?,?,?,?)
+                accepted_at, expires_at, deathless, status, completed_at,
+                type, requirements_blob
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
             """)) {
             statement.setString(1, contract.id());
             statement.setString(2, contract.offerId());
@@ -353,6 +365,8 @@ public final class StorageService {
             } else {
                 statement.setLong(10, contract.completedAtEpochSeconds());
             }
+            statement.setString(11, contract.type().name());
+            statement.setString(12, ContractDataCodec.encodeRequirements(contract.requirements()));
             statement.executeUpdate();
         }
     }
@@ -549,6 +563,14 @@ public final class StorageService {
             return raw == null ? fallback : Material.valueOf(raw);
         } catch (IllegalArgumentException exception) {
             return fallback;
+        }
+    }
+
+    private ContractType parseContractType(String raw) {
+        try {
+            return raw == null ? ContractType.DELIVERY : ContractType.valueOf(raw);
+        } catch (IllegalArgumentException exception) {
+            return ContractType.DELIVERY;
         }
     }
 }

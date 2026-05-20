@@ -32,6 +32,7 @@ public final class ContractTemplate {
     private final BonusConfig bonusConfig;
     private final List<String> poolTags;
     private final ProjectTrigger projectTrigger;
+    private final int maxPlayers;
 
     public ContractTemplate(
         String key,
@@ -52,7 +53,8 @@ public final class ContractTemplate {
         RewardBundle bonusReward,
         BonusConfig bonusConfig,
         List<String> poolTags,
-        ProjectTrigger projectTrigger
+        ProjectTrigger projectTrigger,
+        int maxPlayers
     ) {
         this.key = key;
         this.scope = scope;
@@ -74,6 +76,7 @@ public final class ContractTemplate {
         this.bonusConfig = bonusConfig == null ? new BonusConfig(1.0D) : bonusConfig;
         this.poolTags = poolTags == null ? List.of() : List.copyOf(poolTags);
         this.projectTrigger = projectTrigger == null ? ProjectTrigger.none() : projectTrigger;
+        this.maxPlayers = Math.max(1, maxPlayers);
     }
 
     public String key() { return key; }
@@ -95,6 +98,7 @@ public final class ContractTemplate {
     public BonusConfig bonusConfig() { return bonusConfig; }
     public List<String> poolTags() { return poolTags; }
     public ProjectTrigger projectTrigger() { return projectTrigger; }
+    public int maxPlayers() { return maxPlayers; }
 
     public boolean isProjectTemplate() {
         return projectTrigger.enabled();
@@ -169,6 +173,8 @@ public final class ContractTemplate {
             scaledRewards,
             scaledBonusReward,
             bonusConfig,
+            maxPlayers,
+            0,
             specialOffer,
             true
         );

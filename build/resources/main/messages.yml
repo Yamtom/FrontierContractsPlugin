@@ -12,7 +12,7 @@ errors:
   invalid-submit: "&cNo matching accepted contract was ready to submit."
   not-enough-items: "&cYou do not have enough items."
   not-ready: "&cThat contract is not ready yet."
-  economy-missing: "&eMoney reward skipped because no Vault economy provider is active."
+  economy-missing: "&eMoney rewards are displayed only (no economy provider configured)."
   creative-mode: "&cYou cannot progress contracts in creative or spectator mode."
   no-such-contract: "&cNo such active contract."
   no-matching-resource: "&cNo active board contract accepts that resource."
@@ -27,10 +27,6 @@ system:
   regenerated: "&aOffer pools regenerated."
   board-refreshed: "&aBoard %board% refreshed."
   reputation-applied: "&aApplied %amount% reputation to %player% on board %board%."
-  placeholder-hooked: "&aPlaceholderAPI hook enabled."
-  placeholder-missing: "&7PlaceholderAPI not found. Placeholders disabled."
-  economy-hooked: "&aVault economy provider found."
-  economy-provider-missing: "&eVault found, but no economy provider is active."
   board-registered: "&aBoard %board% scanned and registered."
   board-placed: "&aBoard %board% placed and registered."
   board-valid: "&aBoard %board% is valid. Bell distance: %distance%."
@@ -56,6 +52,12 @@ gui:
     global: "&bGlobal Contracts"
     local: "&aSettlement Supply Tasks"
     active: "&eYour Active Contracts"
+    regional-info:
+      - "&7Shared board-backed projects from nearby settlements."
+      - "&7Regional tasks remain public and are completed via their linked board."
+    global-info:
+      - "&7Hybrid accepted contracts."
+      - "&7Only global offers use accept/submit flow."
   labels:
     accept: "&aAccept Contract"
     submit: "&aSubmit Contract"
@@ -100,3 +102,85 @@ signs:
     - "Offline"
     - ""
     - "Rebuild"
+
+system:
+  reload-failed: "Reload failed. Check console."
+
+gui:
+  board:
+    local-info:
+      - "&7Local public requests on this physical board."
+      - "&7Right-click this board with the requested resource to deliver."
+      - "&7Construction tasks show compact requirement progress."
+    header:
+      settlement: "&7Settlement: &f%value%"
+      type: "&7Type: &f%value%"
+      bell-link-valid: "&7Bell link: &avalid"
+      bell-link-invalid: "&7Bell link: &cinvalid"
+      bell-distance: "&7Bell distance: &f%value%"
+      refresh: "&7Refresh: &f%value%"
+      reputation: "&7Reputation: &b%value%"
+      trust: "&7Settlement trust: &a%value%"
+      community-level: "&7Community level: &f%value%"
+      regional-pool: "&7Regional pool: &f%value%"
+      validation-issues: "&cValidation issues:"
+      validation-error: "&7- %value%"
+  offer:
+    rank: "&7Rank: &f%rank% &8- &7%desc%"
+    type: "&7Type: &f%type%"
+    reward: "&7Reward: &a%reward%"
+    expires: "&7Expires: &f%time%"
+    click-details: "&eClick for details"
+    linked-board: "&7Linked board: &f%value%"
+    public-regional: "&7Public regional project."
+    scope: "&7Scope: &f%scope%"
+    difficulty: "&7Difficulty: &f%value%"
+    closed: "&7This offer is already closed for you."
+    unavailable: "&7This offer is no longer available to you."
+    slots-available: "&7Slots available: &a%available%&7/&f%max%"
+    slots-taken: "&7All slots are taken (%max%/%max%)."
+    no-longer-available: "&7This offer is no longer available."
+  info:
+    title: "&6Project Info"
+    linked-board: "&7Linked board: &f%value%"
+    site-anchor: "&7Site anchor: &f%x%, %y%, %z%"
+    road-tiles: "&7Road tiles: &f%value%"
+    surface: "&7Surface: &f%value%"
+    building: "&7Building: &f%value%"
+    floors: "&7Floors: &f%value%"
+    recommended-tool: "&7Recommended tool: &f%value%"
+    board-turn-in: "&7Turn-in and validation happen at the linked physical board."
+    global-contract: "&7Global hybrid contract."
+    global-submit: "&7Accept here, then submit from inventory."
+  reward:
+    title: "&6Rewards"
+    money: "&7Money: &a%value%"
+    reputation: "&7Reputation: &b%value%"
+    item: "&7Item: &f%amount%x %item%"
+    command-rewards: "&7Includes command rewards"
+    summary:
+      coins: "%value% coins"
+      rep: "+%value% rep"
+      items: "%amount%x %item%"
+      command: "command reward"
+      fallback: "reward"
+  requirements:
+    title: "&6Requirements"
+    line: "&7- &f%material% &8%delivered%/%total%"
+  action:
+    not-ready:
+      - "&7This contract is not ready yet."
+      - "&7Bring the required items and return."
+  status:
+    saved:
+      - "&7Progress is stored in SQLite."
+      - "&7Nothing is lost on restart."
+  progress:
+    requirements: "&7Requirements: &f%completed%/%total%"
+    delivered: "&7Delivered: &f%delivered%/%total%"
+    simple: "&7Progress: &f%progress%/%goal%"
+  flow:
+    linked-board: "&7Linked board: &f%value%"
+    bring-resources: "&7Bring required resources to that board."
+    construction-shared: "&7Construction progress is shared publicly."
+    road-surface: "&7Road completion also requires the site surface to match."

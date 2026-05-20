@@ -54,11 +54,7 @@ public final class MenuService {
         fillBackground(inventory);
 
         inventory.setItem(4, ItemUtil.menuItem(Material.WRITABLE_BOOK, board.name(), buildBoardHeaderLore(player, board)));
-        inventory.setItem(5, ItemUtil.menuItem(Material.CHEST, messages.raw("gui.sections.local"), List.of(
-            "&7Local public requests on this physical board.",
-            "&7Right-click this board with the requested resource to deliver.",
-            "&7Construction tasks show compact requirement progress."
-        )));
+        inventory.setItem(5, ItemUtil.menuItem(Material.CHEST, messages.raw("gui.sections.local"), messages.list("gui.board.local-info")));
         inventory.setItem(49, buildActiveContractsItem(player));
         inventory.setItem(45, ItemUtil.menuItem(Material.ARROW, messages.raw("gui.labels.back"), messages.list("gui.lore.click-back")));
 
@@ -74,14 +70,8 @@ public final class MenuService {
         holder.setInventory(inventory);
         fillBackground(inventory);
 
-        inventory.setItem(4, ItemUtil.menuItem(Material.COMPASS, messages.raw("gui.sections.regional"), List.of(
-            "&7Shared board-backed projects from nearby settlements.",
-            "&7Regional tasks remain public and are completed via their linked board."
-        )));
-        inventory.setItem(22, ItemUtil.menuItem(Material.WRITABLE_BOOK, messages.raw("gui.sections.global"), List.of(
-            "&7Hybrid accepted contracts.",
-            "&7Only global offers use accept/submit flow."
-        )));
+        inventory.setItem(4, ItemUtil.menuItem(Material.COMPASS, messages.raw("gui.sections.regional"), messages.list("gui.sections.regional-info")));
+        inventory.setItem(22, ItemUtil.menuItem(Material.WRITABLE_BOOK, messages.raw("gui.sections.global"), messages.list("gui.sections.global-info")));
         inventory.setItem(49, buildActiveContractsItem(player));
 
         bindDirectoryOffers(holder, inventory, contractService.getRegionalOffersForDirectory(), REGIONAL_SLOTS, player);
@@ -144,12 +134,26 @@ public final class MenuService {
                 inventory.setItem(20, buildActionItem(player, offer, activeContract));
                 inventory.setItem(24, buildStatusItem(activeContract));
             } else {
-                inventory.setItem(20, ItemUtil.menuItem(Material.BARRIER, messages.raw("gui.labels.unavailable"), List.of(
-                    "&7This offer is no longer available to you."
-                )));
+                inventory.setItem(20, ItemUtil.menuItem(Material.BARRIER, messages.raw("gui.labels.unavailable"), messages.list("gui.offer.unavailable")));
             }
         } else {
-            inventory.setItem(20, ItemUtil.menuItem(Material.CHEST, messages.raw("gui.labels.delivery"), buildBoardFlowLore(offer)));
+            if (activeContract != null) {
+                inventory.setItem(20, ItemUtil.menuItem(Material.CHEST, messages.raw("gui.labels.delivery"), buildBoardFlowLore(offer)));
+                inventory.setItem(24, buildStatusItem(activeContract));
+            } else if (offer.active() && offer.canAccept()) {
+                int slotsLeft = offer.maxPlayers() - offer.activePlayers();
+                List<String> slotsLore = new ArrayList<>(messages.list("gui.lore.click-accept"));
+                slotsLore.add(messages.plain("gui.offer.slots-available", Map.of(
+                    "%available%", Integer.toString(slotsLeft),
+                    "%max%", Integer.toString(offer.maxPlayers())
+                )));
+                inventory.setItem(20, ItemUtil.menuItem(Material.LIME_DYE, messages.raw("gui.labels.accept"), slotsLore, true));
+            } else {
+                String reasonText = offer.active()
+                    ? messages.plain("gui.offer.slots-taken", Map.of("%max%", Integer.toString(offer.maxPlayers())))
+                    : messages.raw("gui.offer.no-longer-available");
+                inventory.setItem(20, ItemUtil.menuItem(Material.BARRIER, messages.raw("gui.labels.unavailable"), List.of(reasonText)));
+            }
         }
 
         player.openInventory(inventory);
@@ -241,8 +245,12 @@ public final class MenuService {
                     } else if (activeContract != null) {
                         dispatch(player, contractService.submitSpecific(player, offer.id()));
                     }
-                    openDetailMenu(player, detailHolder.offerId());
+                } else {
+                    if (activeContract == null && offer.active() && offer.canAccept()) {
+                        dispatch(player, contractService.accept(player, offer.id()));
+                    }
                 }
+                openDetailMenu(player, detailHolder.offerId());
             }
             case 40 -> {
                 ContractOffer offer = contractService.getOffer(detailHolder.offerId()).orElse(null);
@@ -280,21 +288,35 @@ public final class MenuService {
 
     private List<String> buildBoardHeaderLore(Player player, Board board) {
         List<String> lore = new ArrayList<>();
-        lore.add("&7Settlement: &f" + board.name());
-        lore.add("&7Type: &f" + board.displayTypeName());
-        lore.add("&7Bell link: " + (board.isValidStructure() ? "&avalid" : "&cinvalid"));
+        lore.add(messages.plain("gui.board.header.settlement", Map.of("%value%", board.name())));
+        lore.add(messages.plain("gui.board.header.type", Map.of("%value%", board.displayTypeName())));
+        lore.add(board.isValidStructure()
+            ? messages.raw("gui.board.header.bell-link-valid")
+            : messages.raw("gui.board.header.bell-link-invalid"));
         if (board.bellDistance() >= 0.0D) {
-            lore.add("&7Bell distance: &f" + String.format("%.1f", board.bellDistance()));
+            lore.add(messages.plain("gui.board.header.bell-distance", Map.of("%value%", String.format("%.1f", board.bellDistance()))));
         }
-        lore.add("&7Refresh: &f" + TextUtil.formatDuration(Math.max(0L, board.nextRefreshAtEpochSeconds() - (System.currentTimeMillis() / 1000L))));
-        lore.add("&7Reputation: &b" + contractService.getSettlementReputation(player.getUniqueId(), board.id()));
-        lore.add("&7Settlement trust: &a" + contractService.getSettlementTrust(board.id()));
-        lore.add("&7Community level: &f" + contractService.communityLevel());
-        lore.add("&7Regional pool: &f" + contractService.getRegionalOffers(board.id()).size());
+        lore.add(messages.plain("gui.board.header.refresh", Map.of(
+            "%value%", TextUtil.formatDuration(Math.max(0L, board.nextRefreshAtEpochSeconds() - (System.currentTimeMillis() / 1000L)))
+        )));
+        lore.add(messages.plain("gui.board.header.reputation", Map.of(
+            "%value%", Integer.toString(contractService.getSettlementReputation(player.getUniqueId(), board.id()))
+        )));
+        lore.add(messages.plain("gui.board.header.trust", Map.of(
+            "%value%", Integer.toString(contractService.getSettlementTrust(board.id()))
+        )));
+        lore.add(messages.plain("gui.board.header.community-level", Map.of(
+            "%value%", Integer.toString(contractService.communityLevel())
+        )));
+        lore.add(messages.plain("gui.board.header.regional-pool", Map.of(
+            "%value%", Integer.toString(contractService.getRegionalOffers(board.id()).size())
+        )));
         if (!board.validationErrors().isEmpty()) {
             lore.add("");
-            lore.add("&cValidation issues:");
-            board.validationErrors().stream().limit(3).forEach(error -> lore.add("&7- " + error));
+            lore.add(messages.raw("gui.board.header.validation-issues"));
+            board.validationErrors().stream().limit(3).forEach(error ->
+                lore.add(messages.plain("gui.board.header.validation-error", Map.of("%value%", error)))
+            );
         }
         if (!board.flavorText().isBlank()) {
             lore.add("");
@@ -305,19 +327,27 @@ public final class MenuService {
 
     private ItemStack buildBoardOfferItem(ContractOffer offer) {
         List<String> lore = new ArrayList<>();
-        lore.add("&7Rank: &f" + contractService.rankLabel(offer) + " &8- &7" + contractService.rankDescription(offer.rank()));
-        lore.add("&7Type: &f" + offer.type().displayName());
+        lore.add(messages.plain("gui.offer.rank", Map.of(
+            "%rank%", contractService.rankLabel(offer),
+            "%desc%", contractService.rankDescription(offer.rank())
+        )));
+        lore.add(messages.plain("gui.offer.type", Map.of("%type%", offer.type().displayName())));
         lore.addAll(buildCompactProgressLore(offer));
-        lore.add("&7Reward: &a" + summarizeReward(offer));
-        lore.add("&7Expires: &f" + TextUtil.formatDuration(Math.max(0L, offer.offerExpiresAtEpochSeconds() - (System.currentTimeMillis() / 1000L))));
-        lore.add("&eClick for details");
+        lore.add(messages.plain("gui.offer.reward", Map.of("%reward%", summarizeReward(offer))));
+        lore.add(messages.plain("gui.offer.expires", Map.of(
+            "%time%", TextUtil.formatDuration(Math.max(0L, offer.offerExpiresAtEpochSeconds() - (System.currentTimeMillis() / 1000L)))
+        )));
+        lore.add(messages.raw("gui.offer.click-details"));
         return ItemUtil.menuItem(offer.iconMaterial(), offer.title(), lore, offer.totalDeliveredAmount() > 0);
     }
 
     private ItemStack buildOfferItem(Player player, ContractOffer offer, PlayerContract activeContract, boolean acceptedBefore) {
         List<String> lore = new ArrayList<>();
         lore.add(messages.plain("gui.lore.scope", Map.of("%scope%", offer.scope().displayName())));
-        lore.add("&7Rank: &f" + contractService.rankLabel(offer) + " &8- &7" + contractService.rankDescription(offer.rank()));
+        lore.add(messages.plain("gui.offer.rank", Map.of(
+            "%rank%", contractService.rankLabel(offer),
+            "%desc%", contractService.rankDescription(offer.rank())
+        )));
         lore.add(messages.plain("gui.lore.difficulty", Map.of("%difficulty%", offer.difficulty())));
         lore.add(messages.plain("gui.lore.objective", Map.of("%objective%", contractService.objectiveLabel(offer))));
         lore.addAll(buildCompactProgressLore(offer));
@@ -340,8 +370,8 @@ public final class MenuService {
                 lore.addAll(messages.list("gui.lore.click-details"));
             }
         } else {
-            lore.add("&7Linked board: &f" + (offer.boardId() == null ? "-" : offer.boardId()));
-            lore.add("&7Public regional project.");
+            lore.add(messages.plain("gui.offer.linked-board", Map.of("%value%", offer.boardId() == null ? "-" : offer.boardId())));
+            lore.add(messages.raw("gui.offer.public-regional"));
             lore.addAll(messages.list("gui.lore.click-details"));
         }
         return ItemUtil.menuItem(offer.iconMaterial(), offer.title(), lore, activeContract != null || offer.totalDeliveredAmount() > 0);
@@ -349,10 +379,13 @@ public final class MenuService {
 
     private ItemStack buildDetailOfferItem(Player player, ContractOffer offer, PlayerContract activeContract, boolean acceptedBefore) {
         List<String> lore = new ArrayList<>();
-        lore.add("&7Scope: &f" + offer.scope().displayName());
-        lore.add("&7Rank: &f" + contractService.rankLabel(offer) + " &8- &7" + contractService.rankDescription(offer.rank()));
-        lore.add("&7Type: &f" + offer.type().displayName());
-        lore.add("&7Difficulty: &f" + offer.difficulty());
+        lore.add(messages.plain("gui.offer.scope", Map.of("%scope%", offer.scope().displayName())));
+        lore.add(messages.plain("gui.offer.rank", Map.of(
+            "%rank%", contractService.rankLabel(offer),
+            "%desc%", contractService.rankDescription(offer.rank())
+        )));
+        lore.add(messages.plain("gui.offer.type", Map.of("%type%", offer.type().displayName())));
+        lore.add(messages.plain("gui.offer.difficulty", Map.of("%value%", offer.difficulty())));
         lore.add("");
         lore.addAll(TextUtil.colorize(TextUtil.splitLines(offer.description())));
         lore.add("");
@@ -365,7 +398,7 @@ public final class MenuService {
             )));
         } else if (offer.scope() == ContractScope.GLOBAL && acceptedBefore) {
             lore.add("");
-            lore.add("&7This offer is already closed for you.");
+            lore.add(messages.raw("gui.offer.closed"));
         }
         return ItemUtil.menuItem(offer.iconMaterial(), offer.title(), lore, activeContract != null || offer.totalDeliveredAmount() > 0);
     }
@@ -373,49 +406,56 @@ public final class MenuService {
     private ItemStack buildInfoItem(ContractOffer offer) {
         List<String> lore = new ArrayList<>();
         if (offer.scope() != ContractScope.GLOBAL) {
-            lore.add("&7Linked board: &f" + (offer.boardId() == null ? "-" : offer.boardId()));
+            lore.add(messages.plain("gui.info.linked-board", Map.of("%value%", offer.boardId() == null ? "-" : offer.boardId())));
             ConstructionSite site = offer.site();
             if (site != null) {
-                lore.add("&7Site anchor: &f" + site.anchorX() + ", " + site.anchorY() + ", " + site.anchorZ());
+                lore.add(messages.plain("gui.info.site-anchor", Map.of(
+                    "%x%", Integer.toString(site.anchorX()),
+                    "%y%", Integer.toString(site.anchorY()),
+                    "%z%", Integer.toString(site.anchorZ())
+                )));
             }
             if (offer.type() == ContractType.CONSTRUCTION) {
                 if (offer.metadata().isRoadProject()) {
-                    lore.add("&7Road tiles: &f" + offer.metadata().roadTiles());
-                    lore.add("&7Surface: &f" + TextUtil.prettyToken(offer.metadata().surface().name()));
+                    lore.add(messages.plain("gui.info.road-tiles", Map.of("%value%", Integer.toString(offer.metadata().roadTiles()))));
+                    lore.add(messages.plain("gui.info.surface", Map.of("%value%", TextUtil.prettyToken(offer.metadata().surface().name()))));
                 }
                 if (offer.metadata().isBuildingProject()) {
-                    lore.add("&7Building: &f" + offer.metadata().building());
-                    lore.add("&7Floors: &f" + offer.metadata().floorCount());
+                    lore.add(messages.plain("gui.info.building", Map.of("%value%", offer.metadata().building())));
+                    lore.add(messages.plain("gui.info.floors", Map.of("%value%", Integer.toString(offer.metadata().floorCount()))));
                 }
                 if (!offer.metadata().recommendedTool().isBlank()) {
-                    lore.add("&7Recommended tool: &f" + TextUtil.prettyToken(offer.metadata().recommendedTool()));
+                    lore.add(messages.plain("gui.info.recommended-tool", Map.of("%value%", TextUtil.prettyToken(offer.metadata().recommendedTool()))));
                 }
             }
-            lore.add("&7Turn-in and validation happen at the linked physical board.");
+            lore.add(messages.raw("gui.info.board-turn-in"));
         } else {
-            lore.add("&7Global hybrid contract.");
-            lore.add("&7Accept here, then submit from inventory.");
+            lore.add(messages.raw("gui.info.global-contract"));
+            lore.add(messages.raw("gui.info.global-submit"));
         }
-        return ItemUtil.menuItem(Material.MAP, "&6Project Info", lore);
+        return ItemUtil.menuItem(Material.MAP, messages.raw("gui.info.title"), lore);
     }
 
     private ItemStack buildRewardItem(ContractOffer offer) {
         List<String> lore = new ArrayList<>();
-        lore.add("&7Money: &a" + TextUtil.formatMoney(offer.rewards().money()));
-        lore.add("&7Reputation: &b" + offer.rewards().reputation());
+        lore.add(messages.plain("gui.reward.money", Map.of("%value%", TextUtil.formatMoney(offer.rewards().money()))));
+        lore.add(messages.plain("gui.reward.reputation", Map.of("%value%", Integer.toString(offer.rewards().reputation()))));
         if (offer.rewards().hasItemRewards()) {
             for (RewardItem rewardItem : offer.rewards().itemRewards()) {
-                lore.add("&7Item: &f" + rewardItem.amount() + "x " + TextUtil.prettyToken(rewardItem.material().name()));
+                lore.add(messages.plain("gui.reward.item", Map.of(
+                    "%amount%", Integer.toString(rewardItem.amount()),
+                    "%item%", TextUtil.prettyToken(rewardItem.material().name())
+                )));
             }
         }
         if (offer.rewards().hasCommandRewards()) {
-            lore.add("&7Includes command rewards");
+            lore.add(messages.raw("gui.reward.command-rewards"));
         }
-        return ItemUtil.menuItem(Material.EMERALD, "&6Rewards", lore);
+        return ItemUtil.menuItem(Material.EMERALD, messages.raw("gui.reward.title"), lore);
     }
 
     private ItemStack buildRequirementsItem(ContractOffer offer) {
-        return ItemUtil.menuItem(Material.CHEST, "&6Requirements", buildRequirementLines(offer));
+        return ItemUtil.menuItem(Material.CHEST, messages.raw("gui.requirements.title"), buildRequirementLines(offer));
     }
 
     private ItemStack buildActionItem(Player player, ContractOffer offer, PlayerContract activeContract) {
@@ -423,20 +463,14 @@ public final class MenuService {
         if (ready) {
             return ItemUtil.menuItem(Material.LIME_DYE, messages.raw("gui.labels.submit"), messages.list("gui.lore.click-submit"), true);
         }
-        return ItemUtil.menuItem(Material.CLOCK, messages.raw("gui.labels.active"), List.of(
-            "&7This contract is not ready yet.",
-            "&7Bring the required items and return."
-        ));
+        return ItemUtil.menuItem(Material.CLOCK, messages.raw("gui.labels.active"), messages.list("gui.action.not-ready"));
     }
 
     private ItemStack buildStatusItem(PlayerContract activeContract) {
         String label = activeContract.status().name().equals("READY_TO_CLAIM")
             ? messages.raw("gui.labels.ready")
             : messages.raw("gui.labels.active");
-        return ItemUtil.menuItem(Material.KNOWLEDGE_BOOK, label, List.of(
-            "&7Progress is stored in SQLite.",
-            "&7Nothing is lost on restart."
-        ));
+        return ItemUtil.menuItem(Material.KNOWLEDGE_BOOK, label, messages.list("gui.status.saved"));
     }
 
     private List<String> buildActiveContractLore(Player player, ContractOffer offer, PlayerContract contract) {
@@ -475,30 +509,42 @@ public final class MenuService {
     private List<String> buildCompactProgressLore(ContractOffer offer) {
         if (offer.type() == ContractType.CONSTRUCTION) {
             return List.of(
-                "&7Requirements: &f" + offer.completedRequirementCount() + "/" + offer.totalRequirementCount(),
-                "&7Delivered: &f" + offer.totalDeliveredAmount() + "/" + offer.totalRequiredAmount()
+                messages.plain("gui.progress.requirements", Map.of(
+                    "%completed%", Integer.toString(offer.completedRequirementCount()),
+                    "%total%", Integer.toString(offer.totalRequirementCount())
+                )),
+                messages.plain("gui.progress.delivered", Map.of(
+                    "%delivered%", Integer.toString(offer.totalDeliveredAmount()),
+                    "%total%", Integer.toString(offer.totalRequiredAmount())
+                ))
             );
         }
-        return List.of("&7Progress: &f" + offer.deliveredAmount() + "/" + offer.requiredAmount());
+        return List.of(messages.plain("gui.progress.simple", Map.of(
+            "%progress%", Integer.toString(offer.deliveredAmount()),
+            "%goal%", Integer.toString(offer.requiredAmount())
+        )));
     }
 
     private List<String> buildRequirementLines(ContractOffer offer) {
         List<String> lore = new ArrayList<>();
         for (ContractRequirement requirement : offer.requirements()) {
-            lore.add("&7- &f" + TextUtil.prettyToken(requirement.material().name())
-                + " &8" + requirement.deliveredAmount() + "/" + requirement.amount());
+            lore.add(messages.plain("gui.requirements.line", Map.of(
+                "%material%", TextUtil.prettyToken(requirement.material().name()),
+                "%delivered%", Integer.toString(requirement.deliveredAmount()),
+                "%total%", Integer.toString(requirement.amount())
+            )));
         }
         return lore;
     }
 
     private List<String> buildBoardFlowLore(ContractOffer offer) {
         List<String> lore = new ArrayList<>();
-        lore.add("&7Linked board: &f" + (offer.boardId() == null ? "-" : offer.boardId()));
-        lore.add("&7Bring required resources to that board.");
+        lore.add(messages.plain("gui.flow.linked-board", Map.of("%value%", offer.boardId() == null ? "-" : offer.boardId())));
+        lore.add(messages.raw("gui.flow.bring-resources"));
         if (offer.type() == ContractType.CONSTRUCTION) {
-            lore.add("&7Construction progress is shared publicly.");
+            lore.add(messages.raw("gui.flow.construction-shared"));
             if (offer.metadata().isRoadProject()) {
-                lore.add("&7Road completion also requires the site surface to match.");
+                lore.add(messages.raw("gui.flow.road-surface"));
             }
         }
         return lore;
@@ -507,19 +553,22 @@ public final class MenuService {
     private String summarizeReward(ContractOffer offer) {
         List<String> parts = new ArrayList<>();
         if (offer.rewards().money() > 0.0D) {
-            parts.add(TextUtil.formatMoney(offer.rewards().money()) + " coins");
+            parts.add(messages.plain("gui.reward.summary.coins", Map.of("%value%", TextUtil.formatMoney(offer.rewards().money()))));
         }
         if (offer.rewards().reputation() > 0) {
-            parts.add("+" + offer.rewards().reputation() + " rep");
+            parts.add(messages.plain("gui.reward.summary.rep", Map.of("%value%", Integer.toString(offer.rewards().reputation()))));
         }
         if (offer.rewards().hasItemRewards()) {
             RewardItem rewardItem = offer.rewards().itemRewards().getFirst();
-            parts.add(rewardItem.amount() + "x " + TextUtil.prettyToken(rewardItem.material().name()));
+            parts.add(messages.plain("gui.reward.summary.items", Map.of(
+                "%amount%", Integer.toString(rewardItem.amount()),
+                "%item%", TextUtil.prettyToken(rewardItem.material().name())
+            )));
         }
         if (offer.rewards().hasCommandRewards()) {
-            parts.add("command reward");
+            parts.add(messages.raw("gui.reward.summary.command"));
         }
-        return parts.isEmpty() ? "reward" : String.join(", ", parts);
+        return parts.isEmpty() ? messages.raw("gui.reward.summary.fallback") : String.join(", ", parts);
     }
 
     private void dispatch(Player player, ActionResult result) {

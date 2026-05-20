@@ -1,6 +1,0 @@
-{
-  "parent": "item/generated",
-  "textures": {
-    "layer0": "vanilla_questing_1_18_2:items/portalexit"
-  }
-}

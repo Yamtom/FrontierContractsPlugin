@@ -3,10 +3,7 @@ version: 1.0.0
 main: ua.grigo.frontiercontracts.FrontierContractsPlugin
 api-version: "26.1.2"
 author: grigo
-description: Physical settlement supply boards with public delivery tasks, GUI browsing, Vault rewards, SQLite persistence, and reputation.
-softdepend:
-  - Vault
-  - PlaceholderAPI
+description: Physical settlement supply boards with public delivery tasks, GUI browsing, SQLite persistence, and reputation.
 commands:
   contracts:
     description: Opens contract menus and manages physical settlement boards.

@@ -26,7 +26,6 @@ import ua.grigo.frontiercontracts.board.BoardService;
 import ua.grigo.frontiercontracts.board.BoardSignService;
 import ua.grigo.frontiercontracts.config.ContractTemplateLoader;
 import ua.grigo.frontiercontracts.config.PluginSettings;
-import ua.grigo.frontiercontracts.hook.VaultHook;
 import ua.grigo.frontiercontracts.model.Board;
 import ua.grigo.frontiercontracts.model.ConstructionMetadata;
 import ua.grigo.frontiercontracts.model.ConstructionRules;
@@ -56,7 +55,6 @@ import ua.grigo.frontiercontracts.util.TextUtil;
 public final class ContractService {
     private final FrontierContractsPlugin plugin;
     private final StorageService storage;
-    private final VaultHook vaultHook;
     private final MessageService messages;
     private final BoardService boardService;
     private final BoardSignService boardSignService;
@@ -72,12 +70,9 @@ public final class ContractService {
     private final Map<String, SettlementReputation> settlementRep = new HashMap<>();
     private final Map<String, SettlementProgress> settlementProgress = new HashMap<>();
 
-    private boolean economyWarningShown;
-
     public ContractService(
         FrontierContractsPlugin plugin,
         StorageService storage,
-        VaultHook vaultHook,
         MessageService messages,
         BoardService boardService,
         BoardSignService boardSignService,
@@ -85,7 +80,6 @@ public final class ContractService {
     ) {
         this.plugin = plugin;
         this.storage = storage;
-        this.vaultHook = vaultHook;
         this.messages = messages;
         this.boardService = boardService;
         this.boardSignService = boardSignService;
@@ -148,6 +142,7 @@ public final class ContractService {
         }
 
         for (PlayerContract contract : toFail) {
+            ContractOffer failedOffer = findOffer(contract.offerId());
             persistPlayerContract(contract);
             Map<String, PlayerContract> perPlayer = openContracts.get(contract.playerUuid());
             if (perPlayer != null) {
@@ -157,17 +152,19 @@ public final class ContractService {
                 }
             }
 
+            if (failedOffer != null && failedOffer.scope() != ContractScope.GLOBAL) {
+                failedOffer.decrementActivePlayers();
+                persistOffer(failedOffer);
+            }
+
             applyReputationDelta(contract.playerUuid(), contract.boardId(), settings.reputationOnFail());
             PlayerStats playerStats = getStats(contract.playerUuid());
             playerStats.incrementFailedContracts();
             persistStats(playerStats);
 
             Player online = Bukkit.getPlayer(contract.playerUuid());
-            if (online != null) {
-                ContractOffer offer = findOffer(contract.offerId());
-                if (offer != null) {
-                    messages.send(online, "contracts.failed-expired", Map.of("%title%", offer.title()));
-                }
+            if (online != null && failedOffer != null) {
+                messages.send(online, "contracts.failed-expired", Map.of("%title%", failedOffer.title()));
             }
         }
 
@@ -559,20 +556,32 @@ public final class ContractService {
         }
 
         ContractOffer offer = findOffer(offerId);
-        if (offer == null || !offer.active() || offer.scope() != ContractScope.GLOBAL) {
+        if (offer == null || !offer.active()) {
             return ActionResult.failure("errors.unavailable-offer");
         }
-        if (hasAcceptedOffer(player.getUniqueId(), offerId)) {
-            return ActionResult.failure("errors.already-accepted");
+        if (offer.scope() == ContractScope.GLOBAL) {
+            if (hasAcceptedOffer(player.getUniqueId(), offerId)) {
+                return ActionResult.failure("errors.already-accepted");
+            }
+        } else {
+            if (openContracts.getOrDefault(player.getUniqueId(), Map.of()).containsKey(offerId)) {
+                return ActionResult.failure("errors.already-accepted");
+            }
+            if (!offer.canAccept()) {
+                return ActionResult.failure("errors.contract-full");
+            }
         }
 
         long now = now();
+        List<ContractRequirement> contractReqs = new ArrayList<>(offer.requirements().stream().map(ContractRequirement::copy).toList());
         PlayerContract contract = new PlayerContract(
             UUID.randomUUID().toString(),
             offer.id(),
             offer.boardId(),
+            offer.type(),
             player.getUniqueId(),
             0,
+            contractReqs,
             now,
             now + offer.contractDurationSeconds(),
             true,
@@ -581,6 +590,11 @@ public final class ContractService {
         );
         openContracts.computeIfAbsent(player.getUniqueId(), ignored -> new HashMap<>()).put(offer.id(), contract);
         persistPlayerContract(contract);
+
+        if (offer.scope() != ContractScope.GLOBAL) {
+            offer.incrementActivePlayers();
+            persistOffer(offer);
+        }
 
         return ActionResult.success("contracts.accepted", Map.of(
             "%title%", offer.title(),
@@ -627,12 +641,18 @@ public final class ContractService {
             return ActionResult.failure("errors.no-matching-resource");
         }
 
-        ContractOffer offer = selectBoardDeliveryOffer(board.id(), player.getUniqueId(), heldItem.getType());
+        Material material = heldItem.getType();
+        PlayerContract matchedContract = findBoardContract(player.getUniqueId(), board.id(), material);
+        if (matchedContract == null) {
+            return ActionResult.failure("errors.no-matching-resource");
+        }
+
+        ContractOffer offer = findOffer(matchedContract.offerId());
         if (offer == null) {
             return ActionResult.failure("errors.no-matching-resource");
         }
 
-        ContractRequirement requirement = offer.findRequirement(heldItem.getType());
+        ContractRequirement requirement = matchedContract.findRequirement(material);
         if (requirement == null) {
             return ActionResult.failure("errors.no-matching-resource");
         }
@@ -650,7 +670,7 @@ public final class ContractService {
 
         ItemUtil.removeFromHand(player.getInventory(), hand, delivered);
         requirement.addDeliveredAmount(delivered);
-        persistOffer(offer);
+        persistPlayerContract(matchedContract);
         syncBoardDisplay(board);
 
         messages.send(player, "contracts.progress-delivery", Map.of(
@@ -660,8 +680,8 @@ public final class ContractService {
             "%resource%", TextUtil.prettyToken(requirement.material().name())
         ));
 
-        if (canFinalizeSharedOffer(offer) && meetsConstructionValidation(offer)) {
-            completeBoardOffer(player, board, offer);
+        if (matchedContract.isFulfilled()) {
+            rewardBoardContract(player, board, matchedContract);
         }
 
         return ActionResult.success("", Map.of());
@@ -708,6 +728,11 @@ public final class ContractService {
         contract.setStatus(PlayerContractStatus.FAILED);
         contract.setCompletedAtEpochSeconds(now());
         persistPlayerContract(contract);
+
+        if (offer != null && offer.scope() != ContractScope.GLOBAL) {
+            offer.decrementActivePlayers();
+            persistOffer(offer);
+        }
 
         Map<String, PlayerContract> perPlayer = openContracts.get(player.getUniqueId());
         if (perPlayer != null) {
@@ -920,14 +945,8 @@ public final class ContractService {
 
     private void applyRewardBundle(Player player, RewardBundle reward, ContractOffer offer, String boardId) {
         if (reward.money() > 0.0D) {
-            if (vaultHook.hasEconomy()) {
-                vaultHook.deposit(player, reward.money());
-                messages.send(player, "contracts.reward-money", Map.of("%money%", TextUtil.formatMoney(reward.money())));
-            } else if (!economyWarningShown && settings.warnMissingEconomyProvider()) {
-                economyWarningShown = true;
-                plugin.getLogger().warning("Vault economy provider missing. Money rewards skipped.");
-                messages.send(player, "errors.economy-missing");
-            }
+            // Money rewards are displayed only; use command rewards to transfer actual currency.
+            messages.send(player, "contracts.reward-money", Map.of("%money%", TextUtil.formatMoney(reward.money())));
         }
 
         if (reward.reputation() > 0 && boardId != null) {
@@ -972,6 +991,88 @@ public final class ContractService {
                 .thenComparing(Comparator.comparingDouble(ContractOffer::aggregateCompletionRatio).reversed()))
             .findFirst()
             .orElse(null);
+    }
+
+    private PlayerContract findBoardContract(UUID playerUuid, String boardId, Material material) {
+        Map<String, PlayerContract> perPlayer = openContracts.get(playerUuid);
+        if (perPlayer == null) {
+            return null;
+        }
+        for (PlayerContract contract : perPlayer.values()) {
+            if (contract.status() != PlayerContractStatus.ACTIVE) {
+                continue;
+            }
+            if (!boardId.equals(contract.boardId())) {
+                continue;
+            }
+            if (contract.findRequirement(material) != null) {
+                return contract;
+            }
+        }
+        return null;
+    }
+
+    private void rewardBoardContract(Player player, Board board, PlayerContract contract) {
+        ContractOffer offer = findOffer(contract.offerId());
+        if (offer == null) {
+            return;
+        }
+        RewardBundle totalReward = offer.rewards().combine(offer.bonusReward());
+        double payout = totalReward.money();
+        if (contract.deathless() && offer.bonusConfig().hasNoDeathBonus()) {
+            payout *= offer.bonusConfig().noDeathMoneyMultiplier();
+            messages.send(player, "contracts.bonus-applied", Map.of(
+                "%bonus_percent%",
+                Integer.toString((int) Math.round((offer.bonusConfig().noDeathMoneyMultiplier() - 1.0D) * 100.0D))
+            ));
+        }
+        RewardBundle paidReward = new RewardBundle(payout, totalReward.reputation(), totalReward.itemRewards(), totalReward.commandRewards());
+        applyRewardBundle(player, paidReward, offer, board.id());
+
+        contract.setStatus(PlayerContractStatus.CLAIMED);
+        contract.setCompletedAtEpochSeconds(now());
+        persistPlayerContract(contract);
+
+        Map<String, PlayerContract> perPlayer = openContracts.get(player.getUniqueId());
+        if (perPlayer != null) {
+            perPlayer.remove(contract.offerId());
+            if (perPlayer.isEmpty()) {
+                openContracts.remove(player.getUniqueId());
+            }
+        }
+
+        offer.decrementActivePlayers();
+        persistOffer(offer);
+
+        PlayerStats playerStats = getStats(player.getUniqueId());
+        playerStats.incrementCompletedContracts();
+        if (paidReward.reputation() > 0) {
+            playerStats.addReputation(paidReward.reputation());
+        }
+        playerStats.addContractXp(progression().xpFor(offer.rank()));
+        persistStats(playerStats);
+
+        SettlementProgress progress = getSettlementProgress(board.id());
+        int trustGain = Math.max(
+            offer.isProjectOffer() ? projectSettings().trustPerProjectCompletion() : projectSettings().trustPerRoutineCompletion(),
+            paidReward.reputation()
+        );
+        progress.addTrust(trustGain);
+        if (offer.isProjectOffer()) {
+            progress.incrementProjectCompleted();
+            progress.setProjectCooldownUntil(now() + projectSettings().baseProjectCooldownSeconds());
+        } else {
+            progress.incrementRoutineCompleted();
+        }
+        progress.setUpdatedAt(now());
+        persistSettlementProgress(progress);
+
+        messages.send(player, "contracts.completed", Map.of("%title%", offer.title()));
+        messages.send(player, "contracts.complete-summary", Map.of(
+            "%title%", offer.title(),
+            "%money%", TextUtil.formatMoney(paidReward.money())
+        ));
+        syncBoardDisplay(board);
     }
 
     private void trimExtraLocalOffers(Board board) {

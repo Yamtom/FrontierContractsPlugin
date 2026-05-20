@@ -416,6 +416,7 @@ ranked-contracts:
       display-name: "Consignment"
       weight: 6
       scopes: [LOCAL, REGIONAL]
+      max-simultaneous-players: 3
       ranks: [F, E, D, C, B]
       title-pattern: "&6%modifier_prefix%%material_name% %archetype_name%"
       flavor-pattern: "%context_name% needs %material_name% for %modifier_name% repairs"
@@ -431,6 +432,7 @@ ranked-contracts:
       display-name: "Supply Order"
       weight: 6
       scopes: [LOCAL, REGIONAL]
+      max-simultaneous-players: 3
       ranks: [E, D, C, B, A]
       title-pattern: "&6%modifier_prefix%%material_name% %archetype_name%"
       flavor-pattern: "%context_name% requested %material_name% for %modifier_name% fortification work"
@@ -446,6 +448,7 @@ ranked-contracts:
       display-name: "Requisition"
       weight: 4
       scopes: [LOCAL, REGIONAL, GLOBAL]
+      max-simultaneous-players: 3
       ranks: [D, C, B, A, S]
       title-pattern: "&6%modifier_prefix%%material_name% %archetype_name%"
       flavor-pattern: "%context_name% workshops require %material_name% for %modifier_name% production"
@@ -461,6 +464,7 @@ ranked-contracts:
       display-name: "Fuel Delivery"
       weight: 5
       scopes: [LOCAL, REGIONAL]
+      max-simultaneous-players: 3
       ranks: [F, E, D, C, B]
       title-pattern: "&6%modifier_prefix%%material_name% %archetype_name%"
       flavor-pattern: "%context_name% is short on %material_name% for %modifier_name% furnaces"
@@ -476,6 +480,7 @@ ranked-contracts:
       display-name: "Stock Request"
       weight: 7
       scopes: [LOCAL, REGIONAL]
+      max-simultaneous-players: 3
       ranks: [F, E, D, C]
       title-pattern: "&6%modifier_prefix%%material_name% %archetype_name%"
       flavor-pattern: "%context_flavor% need %material_name% for %modifier_name% provisions"
@@ -491,6 +496,7 @@ ranked-contracts:
       display-name: "Textile Order"
       weight: 4
       scopes: [LOCAL, REGIONAL]
+      max-simultaneous-players: 3
       ranks: [E, D, C, B]
       title-pattern: "&6%modifier_prefix%%material_name% %archetype_name%"
       flavor-pattern: "%context_name% crafters requested %material_name% for %modifier_name% outfit work"
@@ -506,6 +512,7 @@ ranked-contracts:
       display-name: "Resupply"
       weight: 4
       scopes: [LOCAL, REGIONAL, GLOBAL]
+      max-simultaneous-players: 3
       ranks: [D, C, B, A]
       title-pattern: "&6%modifier_prefix%%material_name% %archetype_name%"
       flavor-pattern: "%context_name% guards need %material_name% for %modifier_name% defense stock"
@@ -521,6 +528,7 @@ ranked-contracts:
       display-name: "Archive Shipment"
       weight: 3
       scopes: [LOCAL, REGIONAL, GLOBAL]
+      max-simultaneous-players: 3
       ranks: [F, E, D, C, B, A]
       title-pattern: "&6%modifier_prefix%%material_name% %archetype_name%"
       flavor-pattern: "%context_name% clerks asked for %material_name% to cover %modifier_name% records"
@@ -536,6 +544,7 @@ ranked-contracts:
       display-name: "Parts Order"
       weight: 4
       scopes: [LOCAL, REGIONAL, GLOBAL]
+      max-simultaneous-players: 3
       ranks: [D, C, B, A, S]
       title-pattern: "&6%modifier_prefix%%material_name% %archetype_name%"
       flavor-pattern: "%context_flavor% requested %material_name% for %modifier_name% workshop upgrades"
