@@ -54,12 +54,26 @@ public final class ContractsCommand implements CommandExecutor, TabCompleter {
             case "active" -> handleActive(sender);
             case "submit" -> handleSubmit(sender);
             case "abandon" -> handleAbandon(sender, args);
+            case "prestige" -> handlePrestige(sender);
             case "admin" -> handleAdmin(sender, args);
             default -> {
                 messages.send(sender, "errors.unknown-subcommand");
                 yield true;
             }
         };
+    }
+
+    private boolean handlePrestige(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            messages.send(sender, "errors.player-only");
+            return true;
+        }
+        if (!sender.hasPermission("frontiercontracts.use")) {
+            messages.send(sender, "errors.no-permission");
+            return true;
+        }
+        plugin.getContractService().prestige(player);
+        return true;
     }
 
     private boolean handleActive(CommandSender sender) {

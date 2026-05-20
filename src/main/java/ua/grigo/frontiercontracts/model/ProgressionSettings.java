@@ -13,6 +13,11 @@ public final class ProgressionSettings {
     private final AntiFrustrationSettings antiFrustration;
     private final int xpPerLevel;
     private final int maxLevel;
+    private final int xpMultiplier;
+    private final int xpBase;
+    private final int maxPrestige;
+    private final double prestigeXpBonusPerLevel;
+    private final int[] cumulativeXpThresholds;
 
     public ProgressionSettings(
         Map<ContractRank, Integer> variantTargets,
@@ -21,6 +26,21 @@ public final class ProgressionSettings {
         AntiFrustrationSettings antiFrustration,
         int xpPerLevel,
         int maxLevel
+    ) {
+        this(variantTargets, contractXp, rankRollTable, antiFrustration, xpPerLevel, maxLevel, 0, 0, 5, 0.05);
+    }
+
+    public ProgressionSettings(
+        Map<ContractRank, Integer> variantTargets,
+        Map<ContractRank, Integer> contractXp,
+        NavigableMap<Integer, Map<ContractRank, Integer>> rankRollTable,
+        AntiFrustrationSettings antiFrustration,
+        int xpPerLevel,
+        int maxLevel,
+        int xpMultiplier,
+        int xpBase,
+        int maxPrestige,
+        double prestigeXpBonusPerLevel
     ) {
         this.variantTargets = withDefaults(variantTargets, Map.of(
             ContractRank.F, 800,
@@ -97,10 +117,34 @@ public final class ProgressionSettings {
         this.antiFrustration = antiFrustration == null ? AntiFrustrationSettings.defaults() : antiFrustration;
         this.xpPerLevel = Math.max(1, xpPerLevel);
         this.maxLevel = Math.max(1, maxLevel);
+        this.xpMultiplier = Math.max(0, xpMultiplier);
+        this.xpBase = Math.max(0, xpBase);
+        this.maxPrestige = Math.max(0, maxPrestige);
+        this.prestigeXpBonusPerLevel = Math.max(0.0, prestigeXpBonusPerLevel);
+        this.cumulativeXpThresholds = computeThresholds(this.xpMultiplier, this.xpBase, this.xpPerLevel, this.maxLevel);
+    }
+
+    /**
+     * Precomputes cumulative XP required to reach each level.
+     * cumulativeXpThresholds[l-1] = total XP needed to be at level l.
+     * Index 0 is always 0 (level 1 requires no XP).
+     * Quadratic step formula: step(l) = xpMultiplier * (l-1)^2 + xpBase  (l >= 2)
+     * Falls back to linear step = xpPerLevel if xpMultiplier == 0.
+     */
+    private static int[] computeThresholds(int xpMultiplier, int xpBase, int xpPerLevel, int maxLevel) {
+        int[] thresholds = new int[maxLevel];
+        thresholds[0] = 0;
+        for (int l = 2; l <= maxLevel; l++) {
+            int step = (xpMultiplier > 0)
+                ? xpMultiplier * (l - 1) * (l - 1) + xpBase
+                : xpPerLevel;
+            thresholds[l - 1] = thresholds[l - 2] + step;
+        }
+        return thresholds;
     }
 
     public static ProgressionSettings defaults() {
-        return new ProgressionSettings(null, null, null, null, 10, 20);
+        return new ProgressionSettings(null, null, null, null, 10, 20, 100, 200, 5, 0.05);
     }
 
     public Map<ContractRank, Integer> variantTargets() {
@@ -124,7 +168,23 @@ public final class ProgressionSettings {
     }
 
     public int levelForXp(int xp) {
-        return Math.min(maxLevel, Math.max(1, 1 + Math.max(0, xp) / xpPerLevel));
+        if (xp <= 0) return 1;
+        for (int l = maxLevel; l >= 2; l--) {
+            if (xp >= cumulativeXpThresholds[l - 1]) {
+                return l;
+            }
+        }
+        return 1;
+    }
+
+    /**
+     * Returns total cumulative XP required to reach the given level.
+     * Returns 0 for level 1, max threshold for levels above maxLevel.
+     */
+    public int xpNeededForLevel(int level) {
+        if (level <= 1) return 0;
+        int idx = Math.min(level, maxLevel) - 1;
+        return cumulativeXpThresholds[idx];
     }
 
     public AntiFrustrationSettings antiFrustration() {
@@ -137,6 +197,22 @@ public final class ProgressionSettings {
 
     public int xpPerLevel() {
         return xpPerLevel;
+    }
+
+    public int xpMultiplier() {
+        return xpMultiplier;
+    }
+
+    public int xpBase() {
+        return xpBase;
+    }
+
+    public int maxPrestige() {
+        return maxPrestige;
+    }
+
+    public double prestigeXpBonusPerLevel() {
+        return prestigeXpBonusPerLevel;
     }
 
     private static EnumMap<ContractRank, Integer> withDefaults(Map<ContractRank, Integer> source, Map<ContractRank, Integer> defaults) {

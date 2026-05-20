@@ -45,6 +45,10 @@ contracts:
   reward-item: "&7Reward item: &f%amount%x %item%"
   reward-command: "&7Bonus command applied."
   bonus-applied: "&aNo-death bonus applied: &f+%bonus_percent%%% coins"
+  prestige-ready: "&6You have reached level 20! Use /contracts prestige to prestige and gain a permanent XP bonus."
+  prestige-success: "&aPrestige %prestige_level%! XP reset. Permanent XP bonus: +%bonus_percent%%."
+  prestige-not-ready: "&cYou must reach level 20 before prestiging."
+  prestige-max: "&cYou have reached the maximum prestige level."
 
 gui:
   sections:

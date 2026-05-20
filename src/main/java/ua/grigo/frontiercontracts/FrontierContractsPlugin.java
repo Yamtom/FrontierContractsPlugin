@@ -53,7 +53,6 @@ public final class FrontierContractsPlugin extends JavaPlugin {
         }
 
         boardService = new BoardService(getDataFolder(), getServer(), getLogger());
-        boardService.load(settings);
         boardSignService = new BoardSignService(getServer(), messageService);
 
         contractService = new ContractService(this, storageService, messageService, boardService, boardSignService, settings);

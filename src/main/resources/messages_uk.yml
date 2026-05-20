@@ -46,6 +46,10 @@ contracts:
   reward-item: "&7Предмет-нагорода: &f%amount%x %item%"
   reward-command: "&7Бонусну команду виконано."
   bonus-applied: "&aБонус без смерті: &f+%bonus_percent%%% монет"
+  prestige-ready: "&6Ви досягли рівня 20! Використайте /contracts prestige для престижу та постійного бонусу до XP."
+  prestige-success: "&aПрестиж %prestige_level%! XP скинуто. Постійний бонус до XP: +%bonus_percent%%."
+  prestige-not-ready: "&cВи маєте досягти рівня 20 перед престижем."
+  prestige-max: "&cВи досягли максимального рівня престижу."
 
 gui:
   sections:

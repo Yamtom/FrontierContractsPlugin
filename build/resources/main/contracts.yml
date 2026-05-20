@@ -17,17 +17,28 @@ rank-variant-targets:
   S: 5
 
 progression:
-  xp-per-level: 10
+  # Quadratic step formula: step(L) = xp-multiplier * (L-1)^2 + xp-base
+  # Cumulative XP to reach level L = sum of step(2)..step(L)
+  # Example with defaults (m=100, b=200): level 2 needs 300 XP, level 5 ~3800, level 20 ~250k
+  # Set xp-multiplier: 0 to fall back to linear (uses xp-per-level as flat step).
+  xp-multiplier: 100
+  xp-base: 200
+  xp-per-level: 10    # used only if xp-multiplier is 0 (linear fallback)
   max-level: 20
+  max-prestige: 5
+  prestige-xp-bonus-per-level: 0.05  # +5% XP per prestige level (veteran bonus)
 
+# XP awarded per completed contract by rank.
+# Ratio inspired by AuraSkills (~50:1 from common to elite).
+# F=50 XP → S=5000 XP (100:1 range across full tier span).
 contract-xp:
-  F: 1
-  E: 2
-  D: 4
-  C: 7
-  B: 11
-  A: 16
-  S: 25
+  F: 50
+  E: 100
+  D: 250
+  C: 600
+  B: 1200
+  A: 2500
+  S: 5000
 
 rank-roll-table:
   level-1:
@@ -264,6 +275,54 @@ ranked-contracts:
           unit-amount: 8
           weight: 2
           ranks: [C, B, A]
+    crops:
+      materials:
+        - material: WHEAT
+          name: Wheat
+          unit-amount: 16
+          weight: 4
+        - material: BEETROOT
+          name: Beetroot
+          unit-amount: 16
+          weight: 3
+        - material: SUGAR_CANE
+          name: Sugar Cane
+          unit-amount: 24
+          weight: 3
+        - material: PUMPKIN
+          name: Pumpkin
+          unit-amount: 8
+          weight: 2
+        - material: MELON
+          name: Melon
+          unit-amount: 16
+          weight: 2
+        - material: APPLE
+          name: Apple
+          unit-amount: 16
+          weight: 2
+    raw_earth:
+      materials:
+        - material: GRAVEL
+          name: Gravel
+          unit-amount: 32
+          weight: 4
+        - material: SAND
+          name: Sand
+          unit-amount: 32
+          weight: 3
+        - material: CLAY_BALL
+          name: Clay
+          unit-amount: 16
+          weight: 3
+        - material: DIRT
+          name: Dirt
+          unit-amount: 32
+          weight: 3
+        - material: FLINT
+          name: Flint
+          unit-amount: 16
+          weight: 2
 
   quantity-tiers:
     very_small:
@@ -553,6 +612,38 @@ ranked-contracts:
       settlement-contexts: [village_center, trade_hub, guard_post]
       modifiers: [routine, urgent, bulk, premium, emergency]
       reward-packages: [cash_rep, guild_bonus, command_bonus, prestige]
+    farm_produce:
+      enabled: true
+      type: DELIVERY
+      difficulty: SUPPLY
+      display-name: "Produce Run"
+      weight: 6
+      scopes: [LOCAL, REGIONAL]
+      max-simultaneous-players: 3
+      ranks: [F, E]
+      title-pattern: "&6%modifier_prefix%%material_name% %archetype_name%"
+      flavor-pattern: "%context_flavor% need %material_name% for %modifier_name% supplies"
+      material-groups: [crops]
+      quantity-tiers: [very_small, small]
+      settlement-contexts: [farmstead, village_center, guard_post, trade_hub]
+      modifiers: [routine, seasonal, low_reserve]
+      reward-packages: [cash_light]
+    raw_materials_run:
+      enabled: true
+      type: DELIVERY
+      difficulty: SUPPLY
+      display-name: "Materials Run"
+      weight: 5
+      scopes: [LOCAL, REGIONAL]
+      max-simultaneous-players: 3
+      ranks: [F, E, D]
+      title-pattern: "&6%modifier_prefix%%material_name% %archetype_name%"
+      flavor-pattern: "%context_flavor% requested %material_name% for %modifier_name% work"
+      material-groups: [raw_earth]
+      quantity-tiers: [very_small, small]
+      settlement-contexts: [quarry, village_center, farmstead]
+      modifiers: [routine, low_reserve, seasonal]
+      reward-packages: [cash_light]
 
 project-templates:
   road_patch_local:

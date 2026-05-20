@@ -39,6 +39,9 @@ public final class BlockInteractListener implements Listener {
         if (!event.getAction().name().startsWith("RIGHT_CLICK")) {
             return;
         }
+        if (event.getHand() == EquipmentSlot.OFF_HAND) {
+            return;
+        }
 
         Block block = event.getClickedBlock();
         if (block == null) {

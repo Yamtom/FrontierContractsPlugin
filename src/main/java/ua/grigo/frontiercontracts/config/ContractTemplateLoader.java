@@ -319,7 +319,12 @@ public final class ContractTemplateLoader {
         ConfigurationSection progressionSec = config.getConfigurationSection("progression");
         int xpPerLevel = progressionSec == null ? 10 : Math.max(1, progressionSec.getInt("xp-per-level", 10));
         int maxLevel = progressionSec == null ? 20 : Math.max(1, progressionSec.getInt("max-level", 20));
-        return new ProgressionSettings(targets, xpTable, rollTable, antiFrustration, xpPerLevel, maxLevel);
+        int xpMultiplier = progressionSec == null ? 100 : Math.max(0, progressionSec.getInt("xp-multiplier", 100));
+        int xpBase = progressionSec == null ? 200 : Math.max(0, progressionSec.getInt("xp-base", 200));
+        int maxPrestige = progressionSec == null ? 5 : Math.max(0, progressionSec.getInt("max-prestige", 5));
+        double prestigeXpBonusPerLevel = progressionSec == null ? 0.05 : Math.max(0.0, progressionSec.getDouble("prestige-xp-bonus-per-level", 0.05));
+        return new ProgressionSettings(targets, xpTable, rollTable, antiFrustration, xpPerLevel, maxLevel,
+            xpMultiplier, xpBase, maxPrestige, prestigeXpBonusPerLevel);
     }
 
     private static AntiFrustrationSettings parseAntiFrustration(ConfigurationSection sec) {

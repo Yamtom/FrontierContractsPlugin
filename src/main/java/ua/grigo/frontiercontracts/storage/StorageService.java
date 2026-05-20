@@ -105,9 +105,9 @@ public final class StorageService {
                 CREATE TABLE IF NOT EXISTS player_stats (
                     player_uuid TEXT PRIMARY KEY,
                     reputation INTEGER NOT NULL,
-                    completed_contracts INTEGER NOT NULL,
+                    contracts_completed INTEGER NOT NULL,
                     failed_contracts INTEGER NOT NULL,
-                    contract_xp INTEGER NOT NULL DEFAULT 0
+                    xp INTEGER NOT NULL DEFAULT 0
                 )
                 """);
 
@@ -124,8 +124,8 @@ public final class StorageService {
             statement.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS settlement_progress (
                     board_id TEXT PRIMARY KEY,
-                    trust INTEGER NOT NULL DEFAULT 0,
-                    routine_completed INTEGER NOT NULL DEFAULT 0,
+                    trust_level INTEGER NOT NULL DEFAULT 0,
+                    routine_completions INTEGER NOT NULL DEFAULT 0,
                     project_completed INTEGER NOT NULL DEFAULT 0,
                     project_cooldown_until INTEGER NOT NULL DEFAULT 0,
                     ranked_without_high INTEGER NOT NULL DEFAULT 0,
@@ -151,11 +151,20 @@ public final class StorageService {
             migrateAddColumnIfMissing(statement, "generated_offers", "bonus_reward_blob", "TEXT NULL");
             migrateAddColumnIfMissing(statement, "generated_offers", "special_offer", "INTEGER NOT NULL DEFAULT 0");
             migrateAddColumnIfMissing(statement, "player_contracts", "board_id", "TEXT NULL");
-            migrateAddColumnIfMissing(statement, "player_stats", "contract_xp", "INTEGER NOT NULL DEFAULT 0");
+            migrateRenameColumn(statement, "player_stats", "contract_xp", "xp");
+            migrateRenameColumn(statement, "player_stats", "completed_contracts", "contracts_completed");
+            migrateRenameColumn(statement, "settlement_progress", "trust", "trust_level");
+            migrateRenameColumn(statement, "settlement_progress", "routine_completed", "routine_completions");
+            migrateAddColumnIfMissing(statement, "player_stats", "xp", "INTEGER NOT NULL DEFAULT 0");
             migrateAddColumnIfMissing(statement, "generated_offers", "max_players", "INTEGER NOT NULL DEFAULT 1");
             migrateAddColumnIfMissing(statement, "generated_offers", "active_players", "INTEGER NOT NULL DEFAULT 0");
             migrateAddColumnIfMissing(statement, "player_contracts", "type", "TEXT NOT NULL DEFAULT 'DELIVERY'");
             migrateAddColumnIfMissing(statement, "player_contracts", "requirements_blob", "TEXT NULL");
+            migrateAddColumnIfMissing(statement, "player_stats", "last_high_rank_at", "INTEGER NOT NULL DEFAULT 0");
+            migrateAddColumnIfMissing(statement, "player_stats", "prestige_level", "INTEGER NOT NULL DEFAULT 0");
+            migrateAddColumnIfMissing(statement, "settlement_reputation", "lifetime_completed", "INTEGER NOT NULL DEFAULT 0");
+            migrateAddColumnIfMissing(statement, "settlement_progress", "unlocked_projects", "TEXT NULL");
+            migrateAddColumnIfMissing(statement, "settlement_progress", "active_project_id", "TEXT NULL");
         }
     }
 
@@ -163,6 +172,14 @@ public final class StorageService {
         try {
             statement.executeUpdate("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);
         } catch (SQLException ignored) {
+        }
+    }
+
+    private void migrateRenameColumn(Statement statement, String table, String oldName, String newName) {
+        try {
+            statement.executeUpdate("ALTER TABLE " + table + " RENAME COLUMN " + oldName + " TO " + newName);
+        } catch (SQLException ignored) {
+            // Column already renamed or doesn't exist — safe to ignore
         }
     }
 
@@ -380,9 +397,11 @@ public final class StorageService {
                 stats.put(uuid, new PlayerStats(
                     uuid,
                     resultSet.getInt("reputation"),
-                    resultSet.getInt("completed_contracts"),
+                    resultSet.getInt("contracts_completed"),
                     resultSet.getInt("failed_contracts"),
-                    getInt(resultSet, "contract_xp", 0)
+                    getInt(resultSet, "xp", 0),
+                    getLong(resultSet, "last_high_rank_at", 0L),
+                    getInt(resultSet, "prestige_level", 0)
                 ));
             }
         }
@@ -392,14 +411,16 @@ public final class StorageService {
     public void saveStats(PlayerStats stats) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
             INSERT OR REPLACE INTO player_stats
-            (player_uuid, reputation, completed_contracts, failed_contracts, contract_xp)
-            VALUES (?,?,?,?,?)
+            (player_uuid, reputation, contracts_completed, failed_contracts, xp, last_high_rank_at, prestige_level)
+            VALUES (?,?,?,?,?,?,?)
             """)) {
             statement.setString(1, stats.playerUuid().toString());
             statement.setInt(2, stats.reputation());
-            statement.setInt(3, stats.completedContracts());
+            statement.setInt(3, stats.contractsCompleted());
             statement.setInt(4, stats.failedContracts());
-            statement.setInt(5, stats.contractXp());
+            statement.setInt(5, stats.xp());
+            statement.setLong(6, stats.lastHighRankAt());
+            statement.setInt(7, stats.prestigeLevel());
             statement.executeUpdate();
         }
     }
@@ -411,14 +432,16 @@ public final class StorageService {
             while (resultSet.next()) {
                 SettlementProgress progress = new SettlementProgress(
                     resultSet.getString("board_id"),
-                    resultSet.getInt("trust"),
-                    resultSet.getInt("routine_completed"),
+                    resultSet.getInt("trust_level"),
+                    resultSet.getInt("routine_completions"),
                     resultSet.getInt("project_completed"),
                     resultSet.getLong("project_cooldown_until"),
                     resultSet.getInt("ranked_without_high"),
                     resultSet.getInt("ranked_without_elite"),
                     ContractDataCodec.decodeStringList(getString(resultSet, "recent_variants_blob")),
-                    resultSet.getLong("updated_at")
+                    resultSet.getLong("updated_at"),
+                    ContractDataCodec.decodeStringList(getString(resultSet, "unlocked_projects")),
+                    getString(resultSet, "active_project_id")
                 );
                 result.put(progress.boardId(), progress);
             }
@@ -429,19 +452,22 @@ public final class StorageService {
     public void saveSettlementProgress(SettlementProgress progress) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
             INSERT OR REPLACE INTO settlement_progress
-            (board_id, trust, routine_completed, project_completed, project_cooldown_until,
-             ranked_without_high, ranked_without_elite, recent_variants_blob, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?)
+            (board_id, trust_level, routine_completions, project_completed, project_cooldown_until,
+             ranked_without_high, ranked_without_elite, recent_variants_blob, updated_at,
+             unlocked_projects, active_project_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)
             """)) {
             statement.setString(1, progress.boardId());
-            statement.setInt(2, progress.trust());
-            statement.setInt(3, progress.routineCompleted());
+            statement.setInt(2, progress.trustLevel());
+            statement.setInt(3, progress.routineCompletions());
             statement.setInt(4, progress.projectCompleted());
             statement.setLong(5, progress.projectCooldownUntil());
             statement.setInt(6, progress.rankedWithoutHigh());
             statement.setInt(7, progress.rankedWithoutElite());
             statement.setString(8, ContractDataCodec.encodeStringList(progress.recentVariants()));
             statement.setLong(9, progress.updatedAt());
+            statement.setString(10, ContractDataCodec.encodeStringList(progress.unlockedProjects()));
+            statement.setString(11, progress.activeProjectId());
             statement.executeUpdate();
         }
     }
@@ -457,7 +483,8 @@ public final class StorageService {
                     boardId,
                     playerUuid,
                     resultSet.getInt("reputation"),
-                    resultSet.getLong("updated_at")
+                    resultSet.getLong("updated_at"),
+                    getInt(resultSet, "lifetime_completed", 0)
                 );
                 result.put(boardId + ":" + playerUuid, reputation);
             }
@@ -468,13 +495,14 @@ public final class StorageService {
     public void saveSettlementReputation(SettlementReputation reputation) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
             INSERT OR REPLACE INTO settlement_reputation
-            (board_id, player_uuid, reputation, updated_at)
-            VALUES (?,?,?,?)
+            (board_id, player_uuid, reputation, updated_at, lifetime_completed)
+            VALUES (?,?,?,?,?)
             """)) {
             statement.setString(1, reputation.boardId());
             statement.setString(2, reputation.playerUuid().toString());
             statement.setInt(3, reputation.reputation());
             statement.setLong(4, reputation.updatedAt());
+            statement.setInt(5, reputation.lifetimeCompleted());
             statement.executeUpdate();
         }
     }
@@ -524,6 +552,14 @@ public final class StorageService {
             return fallback;
         }
         int value = resultSet.getInt(column);
+        return resultSet.wasNull() ? fallback : value;
+    }
+
+    private long getLong(ResultSet resultSet, String column, long fallback) throws SQLException {
+        if (!hasColumn(resultSet, column)) {
+            return fallback;
+        }
+        long value = resultSet.getLong(column);
         return resultSet.wasNull() ? fallback : value;
     }
 

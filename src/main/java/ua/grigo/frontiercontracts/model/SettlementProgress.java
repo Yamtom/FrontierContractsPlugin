@@ -5,19 +5,21 @@ import java.util.List;
 
 public final class SettlementProgress {
     private final String boardId;
-    private int trust;
-    private int routineCompleted;
+    private int trustLevel;
+    private int routineCompletions;
     private int projectCompleted;
     private long projectCooldownUntil;
     private int rankedWithoutHigh;
     private int rankedWithoutElite;
     private final List<String> recentVariants;
     private long updatedAt;
+    private final List<String> unlockedProjects;
+    private String activeProjectId;
 
     public SettlementProgress(
         String boardId,
-        int trust,
-        int routineCompleted,
+        int trustLevel,
+        int routineCompletions,
         int projectCompleted,
         long projectCooldownUntil,
         int rankedWithoutHigh,
@@ -25,35 +27,54 @@ public final class SettlementProgress {
         List<String> recentVariants,
         long updatedAt
     ) {
+        this(boardId, trustLevel, routineCompletions, projectCompleted, projectCooldownUntil,
+            rankedWithoutHigh, rankedWithoutElite, recentVariants, updatedAt, List.of(), null);
+    }
+
+    public SettlementProgress(
+        String boardId,
+        int trustLevel,
+        int routineCompletions,
+        int projectCompleted,
+        long projectCooldownUntil,
+        int rankedWithoutHigh,
+        int rankedWithoutElite,
+        List<String> recentVariants,
+        long updatedAt,
+        List<String> unlockedProjects,
+        String activeProjectId
+    ) {
         this.boardId = boardId;
-        this.trust = Math.max(0, trust);
-        this.routineCompleted = Math.max(0, routineCompleted);
+        this.trustLevel = Math.max(0, trustLevel);
+        this.routineCompletions = Math.max(0, routineCompletions);
         this.projectCompleted = Math.max(0, projectCompleted);
         this.projectCooldownUntil = Math.max(0L, projectCooldownUntil);
         this.rankedWithoutHigh = Math.max(0, rankedWithoutHigh);
         this.rankedWithoutElite = Math.max(0, rankedWithoutElite);
         this.recentVariants = recentVariants == null ? new ArrayList<>() : new ArrayList<>(recentVariants);
         this.updatedAt = Math.max(0L, updatedAt);
+        this.unlockedProjects = unlockedProjects == null ? new ArrayList<>() : new ArrayList<>(unlockedProjects);
+        this.activeProjectId = activeProjectId;
     }
 
     public String boardId() {
         return boardId;
     }
 
-    public int trust() {
-        return trust;
+    public int trustLevel() {
+        return trustLevel;
     }
 
-    public void addTrust(int delta) {
-        trust = Math.max(0, trust + delta);
+    public void addTrustLevel(int delta) {
+        trustLevel = Math.max(0, trustLevel + delta);
     }
 
-    public int routineCompleted() {
-        return routineCompleted;
+    public int routineCompletions() {
+        return routineCompletions;
     }
 
-    public void incrementRoutineCompleted() {
-        routineCompleted++;
+    public void incrementRoutineCompletions() {
+        routineCompletions++;
     }
 
     public int projectCompleted() {
@@ -123,5 +144,31 @@ public final class SettlementProgress {
 
     public void setUpdatedAt(long updatedAt) {
         this.updatedAt = Math.max(0L, updatedAt);
+    }
+
+    public List<String> unlockedProjects() {
+        return List.copyOf(unlockedProjects);
+    }
+
+    public boolean hasUnlockedProject(String projectId) {
+        return projectId != null && unlockedProjects.contains(projectId);
+    }
+
+    public void unlockProject(String projectId) {
+        if (projectId != null && !projectId.isBlank() && !unlockedProjects.contains(projectId)) {
+            unlockedProjects.add(projectId);
+        }
+    }
+
+    public String activeProjectId() {
+        return activeProjectId;
+    }
+
+    public void setActiveProjectId(String projectId) {
+        this.activeProjectId = (projectId == null || projectId.isBlank()) ? null : projectId;
+    }
+
+    public boolean hasActiveProject() {
+        return activeProjectId != null;
     }
 }

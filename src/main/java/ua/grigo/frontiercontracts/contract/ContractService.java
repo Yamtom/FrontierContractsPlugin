@@ -26,6 +26,8 @@ import ua.grigo.frontiercontracts.board.BoardService;
 import ua.grigo.frontiercontracts.board.BoardSignService;
 import ua.grigo.frontiercontracts.config.ContractTemplateLoader;
 import ua.grigo.frontiercontracts.config.PluginSettings;
+import ua.grigo.frontiercontracts.core.ContractRankRoller;
+import ua.grigo.frontiercontracts.core.ProgressionService;
 import ua.grigo.frontiercontracts.model.Board;
 import ua.grigo.frontiercontracts.model.ConstructionMetadata;
 import ua.grigo.frontiercontracts.model.ConstructionRules;
@@ -62,6 +64,8 @@ public final class ContractService {
 
     private PluginSettings settings;
     private ContractCatalog catalog = new ContractCatalog(Map.of(), null, null, null, null, List.of(), List.of());
+    private ProgressionService progressionService = new ProgressionService(ua.grigo.frontiercontracts.model.ProgressionSettings.defaults());
+    private ContractRankRoller rankRoller = new ContractRankRoller(progressionService);
 
     private final Map<String, Map<String, ContractOffer>> offersByBoard = new HashMap<>();
     private final Map<String, ContractOffer> globalOffers = new LinkedHashMap<>();
@@ -90,6 +94,8 @@ public final class ContractService {
     public void reload(FileConfiguration contractsConfig, PluginSettings settings) throws SQLException {
         this.settings = settings;
         this.catalog = ContractTemplateLoader.load(contractsConfig, settings);
+        this.progressionService = new ProgressionService(catalog.progressionSettings());
+        this.rankRoller = new ContractRankRoller(progressionService);
         offersByBoard.clear();
         globalOffers.clear();
         openContracts.clear();
@@ -421,8 +427,7 @@ public final class ContractService {
             return null;
         }
 
-        Map<ContractRank, Integer> weights = buildRankWeights(progress, allowedRanks);
-        List<ContractRank> rankOrder = weightedRankOrder(weights, allowedRanks);
+        List<ContractRank> rankOrder = rankRoller.rollRanks(effectiveGenerationLevel(progress), progress, antiFrustration(), allowedRanks);
         for (ContractRank rank : rankOrder) {
             List<ContractTemplate> candidates = pool.stream()
                 .filter(template -> template.rank() == rank)
@@ -777,7 +782,7 @@ public final class ContractService {
     }
 
     public int getSettlementTrust(String boardId) {
-        return getSettlementProgress(boardId).trust();
+        return getSettlementProgress(boardId).trustLevel();
     }
 
     public void markDeath(UUID playerUuid) {
@@ -817,7 +822,32 @@ public final class ContractService {
     }
 
     public int contractorLevel(UUID playerUuid) {
-        return progression().levelForXp(getStats(playerUuid).contractXp());
+        return progressionService.levelForXp(getStats(playerUuid).xp());
+    }
+
+    public boolean canPrestige(UUID playerUuid) {
+        return progressionService.canPrestige(getStats(playerUuid));
+    }
+
+    public boolean prestige(Player player) {
+        PlayerStats playerStats = getStats(player.getUniqueId());
+        if (!progressionService.canPrestige(playerStats)) {
+            if (progressionService.levelForXp(playerStats.xp()) < progressionService.maxLevel()) {
+                messages.send(player, "contracts.prestige-not-ready", Map.of());
+            } else {
+                messages.send(player, "contracts.prestige-max", Map.of());
+            }
+            return false;
+        }
+        playerStats.prestige();
+        persistStats(playerStats);
+        int newPrestige = playerStats.prestigeLevel();
+        int bonusPct = (int) Math.round(progressionService.prestigeXpMultiplier(newPrestige) * 100 - 100);
+        messages.send(player, "contracts.prestige-success", Map.of(
+            "%prestige_level%", Integer.toString(newPrestige),
+            "%bonus_percent%", Integer.toString(bonusPct)
+        ));
+        return true;
     }
 
     public int communityLevel() {
@@ -892,12 +922,14 @@ public final class ContractService {
         }
 
         PlayerStats playerStats = getStats(player.getUniqueId());
-        playerStats.incrementCompletedContracts();
         if (paidReward.reputation() > 0) {
             playerStats.addReputation(paidReward.reputation());
         }
-        playerStats.addContractXp(progression().xpFor(offer.rank()));
+        progressionService.applyCompletion(playerStats, offer.rank());
         persistStats(playerStats);
+        if (progressionService.canPrestige(playerStats)) {
+            messages.send(player, "contracts.prestige-ready", Map.of());
+        }
         messages.send(player, "contracts.completed", Map.of("%title%", offer.title()));
     }
 
@@ -909,24 +941,28 @@ public final class ContractService {
         applyRewardBundle(player, totalReward, offer, board.id());
 
         PlayerStats playerStats = getStats(player.getUniqueId());
-        playerStats.incrementCompletedContracts();
         if (totalReward.reputation() > 0) {
             playerStats.addReputation(totalReward.reputation());
         }
-        playerStats.addContractXp(progression().xpFor(offer.rank()));
+        progressionService.applyCompletion(playerStats, offer.rank());
         persistStats(playerStats);
+        if (progressionService.canPrestige(playerStats)) {
+            messages.send(player, "contracts.prestige-ready", Map.of());
+        }
 
         SettlementProgress progress = getSettlementProgress(board.id());
         int trustGain = Math.max(
             offer.isProjectOffer() ? projectSettings().trustPerProjectCompletion() : projectSettings().trustPerRoutineCompletion(),
             totalReward.reputation()
         );
-        progress.addTrust(trustGain);
+        progress.addTrustLevel(trustGain);
         if (offer.isProjectOffer()) {
             progress.incrementProjectCompleted();
             progress.setProjectCooldownUntil(now() + projectSettings().baseProjectCooldownSeconds());
+            progress.unlockProject(offer.templateKey());
+            progress.setActiveProjectId(null);
         } else {
-            progress.incrementRoutineCompleted();
+            progress.incrementRoutineCompletions();
         }
         progress.setUpdatedAt(now());
         persistSettlementProgress(progress);
@@ -1045,24 +1081,28 @@ public final class ContractService {
         persistOffer(offer);
 
         PlayerStats playerStats = getStats(player.getUniqueId());
-        playerStats.incrementCompletedContracts();
         if (paidReward.reputation() > 0) {
             playerStats.addReputation(paidReward.reputation());
         }
-        playerStats.addContractXp(progression().xpFor(offer.rank()));
+        progressionService.applyCompletion(playerStats, offer.rank());
         persistStats(playerStats);
+        if (progressionService.canPrestige(playerStats)) {
+            messages.send(player, "contracts.prestige-ready", Map.of());
+        }
 
         SettlementProgress progress = getSettlementProgress(board.id());
         int trustGain = Math.max(
             offer.isProjectOffer() ? projectSettings().trustPerProjectCompletion() : projectSettings().trustPerRoutineCompletion(),
             paidReward.reputation()
         );
-        progress.addTrust(trustGain);
+        progress.addTrustLevel(trustGain);
         if (offer.isProjectOffer()) {
             progress.incrementProjectCompleted();
             progress.setProjectCooldownUntil(now() + projectSettings().baseProjectCooldownSeconds());
+            progress.unlockProject(offer.templateKey());
+            progress.setActiveProjectId(null);
         } else {
-            progress.incrementRoutineCompleted();
+            progress.incrementRoutineCompletions();
         }
         progress.setUpdatedAt(now());
         persistSettlementProgress(progress);
@@ -1211,6 +1251,7 @@ public final class ContractService {
         };
     }
 
+    @SuppressWarnings("unused")
     private Map<ContractRank, Integer> buildRankWeights(SettlementProgress progress, EnumSet<ContractRank> allowedRanks) {
         EnumMap<ContractRank, Integer> adjusted = new EnumMap<>(ContractRank.class);
         Map<ContractRank, Integer> base = progression().weightsForLevel(effectiveGenerationLevel(progress));
@@ -1272,13 +1313,13 @@ public final class ContractService {
 
     private int effectiveGenerationLevel(SettlementProgress progress) {
         int communityLevel = stats.values().stream()
-            .mapToInt(playerStats -> progression().levelForXp(playerStats.contractXp()))
+            .mapToInt(playerStats -> progressionService.levelForXp(playerStats.xp()))
             .max()
             .orElse(1);
         if (progress == null) {
             return communityLevel;
         }
-        int trustBonus = progress.trust() / projectSettings().trustLevelDivisor();
+        int trustBonus = progress.trustLevel() / projectSettings().trustLevelDivisor();
         return Math.min(progression().maxLevel(), communityLevel + trustBonus);
     }
 
@@ -1286,8 +1327,8 @@ public final class ContractService {
         if (progress == null || template == null || !template.isProjectTemplate()) {
             return false;
         }
-        return progress.trust() >= template.projectTrigger().minTrust()
-            && progress.routineCompleted() >= template.projectTrigger().minRoutineCompletions()
+        return progress.trustLevel() >= template.projectTrigger().minTrust()
+            && progress.routineCompletions() >= template.projectTrigger().minRoutineCompletions()
             && progress.projectCompleted() >= template.projectTrigger().minProjectCompletions()
             && now >= Math.max(progress.projectCooldownUntil(), 0L);
     }
@@ -1295,7 +1336,7 @@ public final class ContractService {
     private SettlementProgress getSettlementProgress(String boardId) {
         return settlementProgress.computeIfAbsent(
             boardId,
-            ignored -> new SettlementProgress(boardId, 0, 0, 0, 0L, 0, 0, List.of(), now())
+            ignored -> new SettlementProgress(boardId, 0, 0, 0, 0L, 0, 0, List.of(), now(), List.of(), null)
         );
     }
 

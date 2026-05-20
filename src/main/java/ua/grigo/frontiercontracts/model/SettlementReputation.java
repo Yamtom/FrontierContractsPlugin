@@ -9,12 +9,18 @@ public final class SettlementReputation {
     private final java.util.UUID playerUuid;
     private int reputation;
     private long updatedAt;
+    private int lifetimeCompleted;
 
     public SettlementReputation(String boardId, java.util.UUID playerUuid, int reputation, long updatedAt) {
+        this(boardId, playerUuid, reputation, updatedAt, 0);
+    }
+
+    public SettlementReputation(String boardId, java.util.UUID playerUuid, int reputation, long updatedAt, int lifetimeCompleted) {
         this.boardId = boardId;
         this.playerUuid = playerUuid;
         this.reputation = reputation;
         this.updatedAt = updatedAt;
+        this.lifetimeCompleted = Math.max(0, lifetimeCompleted);
     }
 
     public String boardId() { return boardId; }
@@ -27,4 +33,10 @@ public final class SettlementReputation {
     }
 
     public long updatedAt() { return updatedAt; }
+
+    public int lifetimeCompleted() { return lifetimeCompleted; }
+
+    public void incrementLifetimeCompleted() {
+        this.lifetimeCompleted++;
+    }
 }

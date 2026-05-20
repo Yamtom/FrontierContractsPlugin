@@ -5,16 +5,24 @@ import java.util.UUID;
 public final class PlayerStats {
     private final UUID playerUuid;
     private int reputation;
-    private int completedContracts;
+    private int contractsCompleted;
     private int failedContracts;
-    private int contractXp;
+    private int xp;
+    private long lastHighRankAt;
+    private int prestigeLevel;
 
-    public PlayerStats(UUID playerUuid, int reputation, int completedContracts, int failedContracts, int contractXp) {
+    public PlayerStats(UUID playerUuid, int reputation, int contractsCompleted, int failedContracts, int xp) {
+        this(playerUuid, reputation, contractsCompleted, failedContracts, xp, 0L, 0);
+    }
+
+    public PlayerStats(UUID playerUuid, int reputation, int contractsCompleted, int failedContracts, int xp, long lastHighRankAt, int prestigeLevel) {
         this.playerUuid = playerUuid;
         this.reputation = reputation;
-        this.completedContracts = completedContracts;
+        this.contractsCompleted = contractsCompleted;
         this.failedContracts = failedContracts;
-        this.contractXp = Math.max(0, contractXp);
+        this.xp = Math.max(0, xp);
+        this.lastHighRankAt = Math.max(0L, lastHighRankAt);
+        this.prestigeLevel = Math.max(0, prestigeLevel);
     }
 
     public UUID playerUuid() {
@@ -29,12 +37,12 @@ public final class PlayerStats {
         this.reputation += value;
     }
 
-    public int completedContracts() {
-        return completedContracts;
+    public int contractsCompleted() {
+        return contractsCompleted;
     }
 
-    public void incrementCompletedContracts() {
-        this.completedContracts++;
+    public void incrementContractsCompleted() {
+        this.contractsCompleted++;
     }
 
     public int failedContracts() {
@@ -45,11 +53,32 @@ public final class PlayerStats {
         this.failedContracts++;
     }
 
-    public int contractXp() {
-        return contractXp;
+    public int xp() {
+        return xp;
     }
 
-    public void addContractXp(int value) {
-        contractXp = Math.max(0, contractXp + Math.max(0, value));
+    public void addXp(int value) {
+        xp = Math.max(0, xp + Math.max(0, value));
+    }
+
+    public long lastHighRankAt() {
+        return lastHighRankAt;
+    }
+
+    public void setLastHighRankAt(long epochSeconds) {
+        this.lastHighRankAt = Math.max(0L, epochSeconds);
+    }
+
+    public int prestigeLevel() {
+        return prestigeLevel;
+    }
+
+    /**
+     * Performs a prestige: increments prestige level and resets accumulated XP to 0.
+     * Caller must verify eligibility (max level reached, prestige cap not hit) before calling.
+     */
+    public void prestige() {
+        prestigeLevel++;
+        xp = 0;
     }
 }
