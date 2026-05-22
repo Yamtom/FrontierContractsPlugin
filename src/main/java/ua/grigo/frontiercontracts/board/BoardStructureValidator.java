@@ -50,6 +50,26 @@ public final class BoardStructureValidator {
         return validate(anchor, board.facing(), board.columnSide());
     }
 
+    /**
+     * Validates the board structure and returns a simplified {@link ValidationResult} enum value.
+     *
+     * <p>Note: {@link ValidationResult#EMPTY_LOCAL_POOL} and {@link ValidationResult#GENERATION_FAILED}
+     * are not assessed here — those require contract data and must be set by the offer-generation layer.
+     *
+     * @param board the board to validate
+     * @return {@link ValidationResult#OK} if the physical structure is valid,
+     *         {@link ValidationResult#WORLD_MISSING} if the world is not loaded,
+     *         {@link ValidationResult#INVALID_STRUCTURE} otherwise
+     */
+    public ValidationResult validateToEnum(Board board) {
+        Location anchor = board.location(server);
+        if (anchor == null) {
+            return ValidationResult.WORLD_MISSING;
+        }
+        BoardValidationResult result = validate(anchor, board.facing(), board.columnSide());
+        return result.valid() ? ValidationResult.OK : ValidationResult.INVALID_STRUCTURE;
+    }
+
     public BoardValidationResult validate(Location anchor, BlockFace facing, BoardColumnSide columnSide) {
         List<String> errors = new ArrayList<>();
         BoardLayout layout = BoardLayout.fromAnchor(anchor, facing, columnSide.offsetFrom(facing));

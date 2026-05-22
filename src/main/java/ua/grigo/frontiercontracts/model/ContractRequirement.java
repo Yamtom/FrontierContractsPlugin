@@ -41,6 +41,16 @@ public final class ContractRequirement {
         return deliveredAmount >= amount;
     }
 
+    /** Alias for {@link #isComplete()} — preferred name in the data-model spec. */
+    public boolean isFulfilled() {
+        return isComplete();
+    }
+
+    /** Alias for {@link #remainingAmount()} — preferred name in the data-model spec. */
+    public int remaining() {
+        return remainingAmount();
+    }
+
     public boolean accepts(Material candidate) {
         return candidate != null && candidate == material && !isComplete();
     }

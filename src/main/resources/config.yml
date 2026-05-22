@@ -27,6 +27,9 @@ boards:
   village-poi-radius: 32
   refresh-interval-seconds: 300
 
+construction:
+  check-interval-seconds: 60
+
 anti-abuse:
   block-creative-submit: true
   log-suspicious-completions: true

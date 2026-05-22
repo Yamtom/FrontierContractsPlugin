@@ -3,6 +3,8 @@ package ua.grigo.frontiercontracts.model;
 public enum ContractType {
     DELIVERY,
     CONSTRUCTION,
+    /** Large-scale build unlocked by sufficient settlement trust (reputation trigger). */
+    PROJECT,
     PROCUREMENT,
     COMBAT,
     FARMING,
@@ -14,6 +16,7 @@ public enum ContractType {
         return switch (this) {
             case DELIVERY -> "Delivery";
             case CONSTRUCTION -> "Construction";
+            case PROJECT -> "Project";
             case PROCUREMENT -> "Procurement";
             case COMBAT -> "Combat";
             case FARMING -> "Farming";
@@ -24,6 +27,6 @@ public enum ContractType {
     }
 
     public boolean isImplementedInV01() {
-        return this == DELIVERY || this == CONSTRUCTION;
+        return this == DELIVERY || this == CONSTRUCTION || this == PROJECT;
     }
 }

@@ -173,6 +173,17 @@ public final class BoardService {
         return boardId == null ? Optional.empty() : Optional.ofNullable(boardsById.get(boardId));
     }
 
+    /**
+     * O(1) lookup of the board whose structure contains the given block.
+     * Checks all indexed positions (planks, signs, fence post).
+     *
+     * @param block the in-world block to check
+     * @return the board whose physical layout includes that block, or empty
+     */
+    public Optional<Board> findBoardAtLocation(org.bukkit.block.Block block) {
+        return getBoardAt(block.getLocation());
+    }
+
     public Optional<Board> getNearestActiveBoard(Location location, double maxRadius) {
         if (location == null || location.getWorld() == null) {
             return Optional.empty();

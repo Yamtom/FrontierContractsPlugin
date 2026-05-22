@@ -58,6 +58,16 @@ public record BoardLayout(
         return keys;
     }
 
+    /** Returns all 6 plank block locations. Alias for {@link #plankBlocks()}. */
+    public List<Location> allPlanks() {
+        return plankBlocks;
+    }
+
+    /** Returns all 6 sign block locations (header + task signs). Alias for {@link #signBlocks()}. */
+    public List<Location> allSigns() {
+        return signBlocks;
+    }
+
     public List<Location> taskSignBlocks() {
         List<Location> taskSigns = new ArrayList<>();
         for (Location location : signBlocks) {

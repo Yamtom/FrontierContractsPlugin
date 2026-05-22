@@ -31,9 +31,14 @@ public final class ContractTemplate {
     private final RewardBundle bonusReward;
     private final BonusConfig bonusConfig;
     private final List<String> poolTags;
+    /** Region tags used for REGIONAL contract pool filtering. */
+    private final List<String> regionTags;
     private final ProjectTrigger projectTrigger;
     private final int maxPlayers;
 
+    /**
+     * Primary constructor — includes {@code regionTags} for REGIONAL pool filtering.
+     */
     public ContractTemplate(
         String key,
         ContractScope scope,
@@ -53,6 +58,7 @@ public final class ContractTemplate {
         RewardBundle bonusReward,
         BonusConfig bonusConfig,
         List<String> poolTags,
+        List<String> regionTags,
         ProjectTrigger projectTrigger,
         int maxPlayers
     ) {
@@ -75,8 +81,40 @@ public final class ContractTemplate {
         this.bonusReward = bonusReward == null ? RewardBundle.empty() : bonusReward;
         this.bonusConfig = bonusConfig == null ? new BonusConfig(1.0D) : bonusConfig;
         this.poolTags = poolTags == null ? List.of() : List.copyOf(poolTags);
+        this.regionTags = regionTags == null ? List.of() : List.copyOf(regionTags);
         this.projectTrigger = projectTrigger == null ? ProjectTrigger.none() : projectTrigger;
         this.maxPlayers = Math.max(1, maxPlayers);
+    }
+
+    /**
+     * Legacy constructor without {@code regionTags} — delegates with an empty list.
+     * Kept for backward compatibility with existing call sites.
+     */
+    public ContractTemplate(
+        String key,
+        ContractScope scope,
+        ContractType type,
+        ContractRank rank,
+        String difficulty,
+        int weight,
+        Material iconMaterial,
+        String title,
+        List<String> description,
+        List<ContractRequirement> requirements,
+        ConstructionMetadata metadata,
+        int durationMinutes,
+        boolean partialDeliveryAllowed,
+        boolean publicOffer,
+        RewardBundle rewards,
+        RewardBundle bonusReward,
+        BonusConfig bonusConfig,
+        List<String> poolTags,
+        ProjectTrigger projectTrigger,
+        int maxPlayers
+    ) {
+        this(key, scope, type, rank, difficulty, weight, iconMaterial, title, description,
+            requirements, metadata, durationMinutes, partialDeliveryAllowed, publicOffer,
+            rewards, bonusReward, bonusConfig, poolTags, List.of(), projectTrigger, maxPlayers);
     }
 
     public String key() { return key; }
@@ -97,8 +135,26 @@ public final class ContractTemplate {
     public RewardBundle bonusReward() { return bonusReward; }
     public BonusConfig bonusConfig() { return bonusConfig; }
     public List<String> poolTags() { return poolTags; }
+    public List<String> regionTags() { return regionTags; }
     public ProjectTrigger projectTrigger() { return projectTrigger; }
     public int maxPlayers() { return maxPlayers; }
+
+    // ---- Spec-compatible aliases ----
+
+    /** Alias for {@link #key()} — canonical template identifier. */
+    public String id() { return key; }
+
+    /** Alias for {@link #title()} — human-readable display name. */
+    public String displayName() { return title; }
+
+    /** Alias for {@link #poolTags()} — contract pool membership tags. */
+    public List<String> contractPools() { return poolTags; }
+
+    /** Alias for {@link #rewards()} — primary reward bundle. */
+    public RewardBundle rewardBundle() { return rewards; }
+
+    /** Alias for {@link #maxPlayers()} — maximum simultaneous accepting players. */
+    public int maxSimultaneousPlayers() { return maxPlayers; }
 
     public boolean isProjectTemplate() {
         return projectTrigger.enabled();

@@ -43,6 +43,56 @@ public final class ContractRankRoller {
         return weightedOrder(weights, allowedRanks);
     }
 
+    /**
+     * Rolls a single {@link ContractRank} using the weight table for {@code playerLevel}
+     * and applying pity bonuses when {@code pityCounter} reaches the configured thresholds.
+     *
+     * <p>Spec-compliant simplified entry point:
+     * <ul>
+     *   <li>If {@code pityCounter} &gt;= {@code highRankPityThreshold}: add highRankWeightBonus to B and A weights.
+     *   <li>If {@code pityCounter} &gt;= {@code eliteRankPityThreshold}: add eliteRankWeightBonus to S weight.
+     * </ul>
+     * After a high rank (B or above) is rolled, callers should reset pityCounter to 0.
+     *
+     * @param playerLevel  effective level used to look up the base weight table
+     * @param pityCounter  number of consecutive non-high-rank rolls
+     * @return a single rolled {@link ContractRank}
+     */
+    public ContractRank rollRank(int playerLevel, int pityCounter) {
+        AntiFrustrationSettings af = progressionService.antiFrustration();
+        Map<ContractRank, Integer> base = progressionService.weightsForLevel(playerLevel);
+        EnumMap<ContractRank, Integer> weights = new EnumMap<>(ContractRank.class);
+        for (ContractRank rank : ContractRank.values()) {
+            weights.put(rank, Math.max(0, base.getOrDefault(rank, 0)));
+        }
+        if (pityCounter >= af.highRankPityThreshold()) {
+            weights.computeIfPresent(ContractRank.B, (k, v) -> v + af.highRankWeightBonus());
+            weights.computeIfPresent(ContractRank.A, (k, v) -> v + af.highRankWeightBonus());
+        }
+        if (pityCounter >= af.eliteRankPityThreshold()) {
+            weights.computeIfPresent(ContractRank.S, (k, v) -> v + af.eliteRankWeightBonus());
+        }
+        return singleWeightedDraw(weights);
+    }
+
+    /**
+     * Selects a single rank by weighted random from the supplied weight map.
+     * Entries with zero or negative weight are skipped.
+     * Falls back to {@link ContractRank#C} if all weights are zero.
+     */
+    private ContractRank singleWeightedDraw(Map<ContractRank, Integer> weights) {
+        int total = weights.values().stream().mapToInt(Integer::intValue).sum();
+        if (total <= 0) return ContractRank.C;
+        int roll = (int) (Math.random() * total);
+        int cumulative = 0;
+        for (Map.Entry<ContractRank, Integer> entry : weights.entrySet()) {
+            if (entry.getValue() <= 0) continue;
+            cumulative += entry.getValue();
+            if (roll < cumulative) return entry.getKey();
+        }
+        return ContractRank.C;
+    }
+
     // ----------------------------------------------------------------- helpers
 
     private Map<ContractRank, Integer> buildWeights(

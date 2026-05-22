@@ -9,13 +9,15 @@ commands:
     description: Opens contract menus and manages physical settlement boards.
     usage: /contracts [active|submit|abandon <id>|admin <subcommand>]
     permission: frontiercontracts.use
+    aliases: [fc, frontier]
+
 permissions:
-  frontiercontracts.use:
+  frontier.use:
     description: Use Frontier Contracts menus and accepted-offer flows.
     default: true
-  frontiercontracts.admin:
+  frontier.admin:
     description: Manage Frontier Contracts boards and data.
     default: op
-  frontiercontracts.admin.board:
+  frontier.admin.board:
     description: Admin board commands specifically.
     default: op

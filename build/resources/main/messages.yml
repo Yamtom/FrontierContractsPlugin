@@ -38,6 +38,7 @@ contracts:
   failed-expired: "&cContract failed due to expiration: &f%title%"
   abandoned: "&cContract abandoned: &f%title%&c. Reputation: &f%reputation_delta%"
   progress-delivery: "&7Delivered for &f%title%&7: &f%progress%/%goal% %resource%"
+  construction-location: "&7Build site: &f%x%, %y%, %z%"
   submit-summary: "&aSubmitted contracts: &f%claimed%"
   submit-summary-none: "&cNo accepted contracts were ready to submit."
   reward-money: "&7Reward: &a%money% coins"

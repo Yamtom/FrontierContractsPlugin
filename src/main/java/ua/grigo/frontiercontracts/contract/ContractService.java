@@ -29,7 +29,6 @@ import ua.grigo.frontiercontracts.config.PluginSettings;
 import ua.grigo.frontiercontracts.core.ContractRankRoller;
 import ua.grigo.frontiercontracts.core.ProgressionService;
 import ua.grigo.frontiercontracts.model.Board;
-import ua.grigo.frontiercontracts.model.ConstructionMetadata;
 import ua.grigo.frontiercontracts.model.ConstructionRules;
 import ua.grigo.frontiercontracts.model.ConstructionSite;
 import ua.grigo.frontiercontracts.model.AntiFrustrationSettings;
@@ -61,6 +60,7 @@ public final class ContractService {
     private final BoardService boardService;
     private final BoardSignService boardSignService;
     private final ConstructionSitePlanner sitePlanner;
+    private final ConstructionValidator constructionValidator;
 
     private PluginSettings settings;
     private ContractCatalog catalog = new ContractCatalog(Map.of(), null, null, null, null, List.of(), List.of());
@@ -88,6 +88,7 @@ public final class ContractService {
         this.boardService = boardService;
         this.boardSignService = boardSignService;
         this.sitePlanner = new ConstructionSitePlanner(plugin.getServer());
+        this.constructionValidator = new ConstructionValidator(plugin.getServer());
         this.settings = settings;
     }
 
@@ -372,7 +373,7 @@ public final class ContractService {
             if (template == null) {
                 return null;
             }
-            ConstructionSite site = sitePlanner.plan(board, template);
+            ConstructionSite site = sitePlanner.plan(board, template, activeConstructionSites());
             if (site == null) {
                 selection.remove(template);
                 continue;
@@ -601,6 +602,15 @@ public final class ContractService {
             persistOffer(offer);
         }
 
+        if (offer.isConstruction() && offer.site() != null) {
+            ConstructionSite site = offer.site();
+            messages.send(player, "contracts.construction-location", Map.of(
+                "%x%", Integer.toString(site.anchorX()),
+                "%y%", Integer.toString(site.anchorY()),
+                "%z%", Integer.toString(site.anchorZ())
+            ));
+        }
+
         return ActionResult.success("contracts.accepted", Map.of(
             "%title%", offer.title(),
             "%time_left%", TextUtil.formatDuration(contract.remainingSeconds(now))
@@ -703,14 +713,21 @@ public final class ContractService {
         int z = changedBlock.getZ();
         for (Map<String, ContractOffer> pool : offersByBoard.values()) {
             for (ContractOffer offer : pool.values()) {
-                if (!offer.active() || !offer.requiresWorldValidation() || !offer.isComplete()) {
+                if (!offer.active() || !offer.requiresWorldValidation() || offer.isComplete()) {
                     continue;
                 }
                 ConstructionSite site = offer.site();
                 if (site == null || !site.contains(worldName, x, y, z)) {
                     continue;
                 }
-                if (!validateRoadSite(offer)) {
+                boolean validated;
+                if (site.isRoadSite()) {
+                    validated = constructionValidator.validateRoad(offer);
+                } else {
+                    validated = constructionValidator.validateBuilding(offer);
+                    persistOffer(offer);
+                }
+                if (!validated) {
                     continue;
                 }
                 Board board = offer.boardId() == null ? null : boardService.getBoard(offer.boardId()).orElse(null);
@@ -722,6 +739,52 @@ public final class ContractService {
             }
         }
         return completed;
+    }
+
+    public Optional<ContractOffer> findConstructionOfferAt(String worldName, int x, int y, int z) {
+        for (Map<String, ContractOffer> pool : offersByBoard.values()) {
+            for (ContractOffer offer : pool.values()) {
+                if (offer.active() && offer.isConstruction() && offer.site() != null
+                        && offer.site().contains(worldName, x, y, z)) {
+                    return Optional.of(offer);
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    public void runScheduledConstructionChecks() {
+        for (Map.Entry<UUID, Map<String, PlayerContract>> entry : openContracts.entrySet()) {
+            UUID playerUuid = entry.getKey();
+            for (PlayerContract contract : entry.getValue().values()) {
+                ContractOffer offer = findOffer(contract.offerId());
+                if (offer == null || !offer.active() || !offer.requiresWorldValidation() || offer.isComplete()) {
+                    continue;
+                }
+                ConstructionSite site = offer.site();
+                if (site == null) {
+                    continue;
+                }
+                boolean validated;
+                if (site.isRoadSite()) {
+                    validated = constructionValidator.validateRoad(offer);
+                } else {
+                    validated = constructionValidator.validateBuilding(offer);
+                    persistOffer(offer);
+                }
+                if (!validated) {
+                    continue;
+                }
+                Board board = offer.boardId() == null ? null : boardService.getBoard(offer.boardId()).orElse(null);
+                if (board == null) {
+                    continue;
+                }
+                Player player = plugin.getServer().getPlayer(playerUuid);
+                if (player != null) {
+                    completeBoardOffer(player, board, offer);
+                }
+            }
+        }
     }
 
     public ActionResult abandon(Player player, String offerId) {
@@ -1221,25 +1284,10 @@ public final class ContractService {
         if (!offer.requiresWorldValidation()) {
             return true;
         }
-        return validateRoadSite(offer);
-    }
-
-    private boolean validateRoadSite(ContractOffer offer) {
-        ConstructionMetadata metadata = offer.metadata();
-        ConstructionSite site = offer.site();
-        if (!metadata.isRoadProject() || site == null || metadata.surface() == null) {
-            return !offer.requiresWorldValidation();
+        if (offer.site().isRoadSite()) {
+            return constructionValidator.validateRoad(offer);
         }
-        org.bukkit.World world = plugin.getServer().getWorld(site.worldName());
-        if (world == null) {
-            return false;
-        }
-        for (ua.grigo.frontiercontracts.model.BlockPosition tile : site.roadTiles()) {
-            if (world.getBlockAt(tile.x(), tile.y(), tile.z()).getType() != metadata.surface()) {
-                return false;
-            }
-        }
-        return true;
+        return constructionValidator.validateBuilding(offer);
     }
 
     private EnumSet<ContractRank> localRankProfile(int slotIndex) {
@@ -1354,6 +1402,18 @@ public final class ContractService {
 
     private long now() {
         return System.currentTimeMillis() / 1000L;
+    }
+
+    private List<ConstructionSite> activeConstructionSites() {
+        List<ConstructionSite> sites = new ArrayList<>();
+        for (Map<String, ContractOffer> pool : offersByBoard.values()) {
+            for (ContractOffer offer : pool.values()) {
+                if (offer.active() && offer.site() != null) {
+                    sites.add(offer.site());
+                }
+            }
+        }
+        return sites;
     }
 
     private void persistOffer(ContractOffer offer) {

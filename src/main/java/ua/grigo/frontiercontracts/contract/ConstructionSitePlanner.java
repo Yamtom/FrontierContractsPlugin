@@ -1,6 +1,7 @@
 package ua.grigo.frontiercontracts.contract;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -17,6 +18,8 @@ import ua.grigo.frontiercontracts.model.ContractTemplate;
 
 public final class ConstructionSitePlanner {
     private static final BlockFace[] CARDINALS = {BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST};
+    private static final int SITE_SEPARATION_RADIUS = 15;
+    private static final int MAX_FLATNESS_VARIANCE = 2;
 
     private final Server server;
 
@@ -24,7 +27,7 @@ public final class ConstructionSitePlanner {
         this.server = server;
     }
 
-    public ConstructionSite plan(Board board, ContractTemplate template) {
+    public ConstructionSite plan(Board board, ContractTemplate template, Collection<ConstructionSite> activeSites) {
         if (board == null || template == null || template.type() != ua.grigo.frontiercontracts.model.ContractType.CONSTRUCTION) {
             return null;
         }
@@ -33,13 +36,14 @@ public final class ConstructionSitePlanner {
         if (bell == null || bell.getWorld() == null) {
             return null;
         }
+        Collection<ConstructionSite> sites = activeSites == null ? List.of() : activeSites;
         return metadata.isRoadProject()
-            ? planRoad(board, template, bell, metadata)
-            : planBuilding(board, template, bell, metadata);
+            ? planRoad(board, template, bell, metadata, sites)
+            : planBuilding(board, template, bell, metadata, sites);
     }
 
-    private ConstructionSite planRoad(Board board, ContractTemplate template, Location bell, ConstructionMetadata metadata) {
-        Set<String> blocked = blockedKeys(board, bell);
+    private ConstructionSite planRoad(Board board, ContractTemplate template, Location bell, ConstructionMetadata metadata, Collection<ConstructionSite> activeSites) {
+        Set<String> blocked = blockedKeys(board, bell, activeSites);
         int startIndex = Math.floorMod((board.id() + ":" + template.key()).hashCode(), CARDINALS.length);
         int tiles = Math.max(1, metadata.roadTiles() == null ? 1 : metadata.roadTiles());
 
@@ -66,8 +70,8 @@ public final class ConstructionSitePlanner {
         return null;
     }
 
-    private ConstructionSite planBuilding(Board board, ContractTemplate template, Location bell, ConstructionMetadata metadata) {
-        Set<String> blocked = blockedKeys(board, bell);
+    private ConstructionSite planBuilding(Board board, ContractTemplate template, Location bell, ConstructionMetadata metadata, Collection<ConstructionSite> activeSites) {
+        Set<String> blocked = blockedKeys(board, bell, activeSites);
         int footprint = metadata.floorCount() >= 2 ? 9 : 7;
         int half = footprint / 2;
         int startIndex = Math.floorMod((board.id() + ":" + template.key()).hashCode(), CARDINALS.length);
@@ -82,15 +86,49 @@ public final class ConstructionSitePlanner {
             int minZ = anchorZ - half;
             int maxZ = anchorZ + half;
             boolean valid = true;
-            for (int x = minX; x <= maxX && valid; x++) {
+
+            // Check 1: no board structure blocks in the footprint
+            outer:
+            for (int x = minX; x <= maxX; x++) {
                 for (int z = minZ; z <= maxZ; z++) {
                     String key = bell.getWorld().getName() + ":" + x + ":" + (anchorY - 1) + ":" + z;
                     if (blocked.contains(key)) {
+                        valid = false;
+                        break outer;
+                    }
+                }
+            }
+
+            // Check 2: terrain flatness (surface height variance <= MAX_FLATNESS_VARIANCE)
+            if (valid) {
+                int minSurfaceY = Integer.MAX_VALUE;
+                int maxSurfaceY = Integer.MIN_VALUE;
+                for (int x = minX; x <= maxX; x++) {
+                    for (int z = minZ; z <= maxZ; z++) {
+                        int surfaceY = bell.getWorld().getHighestBlockYAt(x, z);
+                        if (surfaceY < minSurfaceY) minSurfaceY = surfaceY;
+                        if (surfaceY > maxSurfaceY) maxSurfaceY = surfaceY;
+                    }
+                }
+                if (maxSurfaceY - minSurfaceY > MAX_FLATNESS_VARIANCE) {
+                    valid = false;
+                }
+            }
+
+            // Check 3: minimum separation from existing construction sites
+            if (valid) {
+                String worldName = bell.getWorld().getName();
+                for (ConstructionSite existing : activeSites) {
+                    if (!existing.worldName().equals(worldName)) continue;
+                    int dx = existing.anchorX() - anchorX;
+                    int dz = existing.anchorZ() - anchorZ;
+                    if (dx * dx + dz * dz < SITE_SEPARATION_RADIUS * SITE_SEPARATION_RADIUS) {
                         valid = false;
                         break;
                     }
                 }
             }
+
             if (valid) {
                 return new ConstructionSite(
                     bell.getWorld().getName(),
@@ -129,7 +167,7 @@ public final class ConstructionSitePlanner {
         return new ConstructionSite(world.getName(), anchor.x(), anchor.y(), anchor.z(), minX, minY, minZ, maxX, maxY, maxZ, tiles);
     }
 
-    private Set<String> blockedKeys(Board board, Location bell) {
+    private Set<String> blockedKeys(Board board, Location bell, Collection<ConstructionSite> activeSites) {
         Set<String> blocked = new HashSet<>();
         BoardLayout layout = BoardLayout.fromBoard(board, server);
         if (layout != null) {
@@ -137,8 +175,15 @@ public final class ConstructionSitePlanner {
             layout.plankBlocks().forEach(location -> blocked.add(BoardLayout.keyFor(location)));
             layout.signBlocks().forEach(location -> blocked.add(BoardLayout.keyFor(location)));
         }
-        blocked.add(bell.getWorld().getName() + ":" + bell.getBlockX() + ":" + bell.getBlockY() + ":" + bell.getBlockZ());
-        blocked.add(bell.getWorld().getName() + ":" + bell.getBlockX() + ":" + (bell.getBlockY() - 1) + ":" + bell.getBlockZ());
+        String worldName = bell.getWorld().getName();
+        blocked.add(worldName + ":" + bell.getBlockX() + ":" + bell.getBlockY() + ":" + bell.getBlockZ());
+        blocked.add(worldName + ":" + bell.getBlockX() + ":" + (bell.getBlockY() - 1) + ":" + bell.getBlockZ());
+        for (ConstructionSite existing : activeSites) {
+            if (!existing.worldName().equals(worldName)) continue;
+            for (BlockPosition tile : existing.roadTiles()) {
+                blocked.add(worldName + ":" + tile.x() + ":" + tile.y() + ":" + tile.z());
+            }
+        }
         return blocked;
     }
 }

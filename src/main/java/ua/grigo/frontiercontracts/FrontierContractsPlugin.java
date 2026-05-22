@@ -23,6 +23,7 @@ import ua.grigo.frontiercontracts.util.MessageService;
 
 public final class FrontierContractsPlugin extends JavaPlugin {
     private int cleanupTaskId = -1;
+    private int constructionTaskId = -1;
     private PluginSettings settings;
     private MessageService messageService;
     private StorageService storageService;
@@ -82,6 +83,7 @@ public final class FrontierContractsPlugin extends JavaPlugin {
         try {
             contractService.reload(contractsConfiguration, settings);
             restartCleanupTask();
+            restartConstructionTask();
             return true;
         } catch (SQLException exception) {
             getLogger().severe("Could not reload Frontier Contracts data: " + exception.getMessage());
@@ -134,6 +136,14 @@ public final class FrontierContractsPlugin extends JavaPlugin {
         }
         long period = settings.cleanupIntervalSeconds() * 20L;
         cleanupTaskId = Bukkit.getScheduler().runTaskTimer(this, contractService::cleanupExpiredContent, period, period).getTaskId();
+    }
+
+    private void restartConstructionTask() {
+        if (constructionTaskId != -1) {
+            Bukkit.getScheduler().cancelTask(constructionTaskId);
+        }
+        long period = settings.constructionCheckIntervalSeconds() * 20L;
+        constructionTaskId = Bukkit.getScheduler().runTaskTimer(this, contractService::runScheduledConstructionChecks, period, period).getTaskId();
     }
 
     private void saveResourceIfMissing(String resourcePath) {

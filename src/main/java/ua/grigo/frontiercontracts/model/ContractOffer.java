@@ -181,7 +181,7 @@ public final class ContractOffer {
     }
 
     public boolean requiresWorldValidation() {
-        return isConstruction() && metadata.isRoadProject() && site != null && site.isRoadSite();
+        return isConstruction() && site != null;
     }
 
     public boolean acceptsMaterial(Material material) {

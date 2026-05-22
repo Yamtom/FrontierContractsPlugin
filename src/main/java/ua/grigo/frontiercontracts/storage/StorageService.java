@@ -165,6 +165,8 @@ public final class StorageService {
             migrateAddColumnIfMissing(statement, "settlement_reputation", "lifetime_completed", "INTEGER NOT NULL DEFAULT 0");
             migrateAddColumnIfMissing(statement, "settlement_progress", "unlocked_projects", "TEXT NULL");
             migrateAddColumnIfMissing(statement, "settlement_progress", "active_project_id", "TEXT NULL");
+            migrateAddColumnIfMissing(statement, "player_stats", "pity_counter", "INTEGER NOT NULL DEFAULT 0");
+            migrateAddColumnIfMissing(statement, "player_stats", "recent_variants_blob", "TEXT NULL");
         }
     }
 
@@ -401,7 +403,9 @@ public final class StorageService {
                     resultSet.getInt("failed_contracts"),
                     getInt(resultSet, "xp", 0),
                     getLong(resultSet, "last_high_rank_at", 0L),
-                    getInt(resultSet, "prestige_level", 0)
+                    getInt(resultSet, "prestige_level", 0),
+                    getInt(resultSet, "pity_counter", 0),
+                    ContractDataCodec.decodeStringList(getString(resultSet, "recent_variants_blob"))
                 ));
             }
         }
@@ -411,8 +415,9 @@ public final class StorageService {
     public void saveStats(PlayerStats stats) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
             INSERT OR REPLACE INTO player_stats
-            (player_uuid, reputation, contracts_completed, failed_contracts, xp, last_high_rank_at, prestige_level)
-            VALUES (?,?,?,?,?,?,?)
+            (player_uuid, reputation, contracts_completed, failed_contracts, xp, last_high_rank_at, prestige_level,
+             pity_counter, recent_variants_blob)
+            VALUES (?,?,?,?,?,?,?,?,?)
             """)) {
             statement.setString(1, stats.playerUuid().toString());
             statement.setInt(2, stats.reputation());
@@ -421,6 +426,8 @@ public final class StorageService {
             statement.setInt(5, stats.xp());
             statement.setLong(6, stats.lastHighRankAt());
             statement.setInt(7, stats.prestigeLevel());
+            statement.setInt(8, stats.pityCounter());
+            statement.setString(9, ContractDataCodec.encodeStringList(new java.util.ArrayList<>(stats.recentVariants())));
             statement.executeUpdate();
         }
     }
